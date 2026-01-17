@@ -44,7 +44,7 @@
       </div>
       <div class="container json-b">
         <div class="container-header">
-          <h2>JSON <span class="label-b">B</span></h2>
+          <h2>JSON <span class="label-b">B</span><input type="text" class="alias-input" id="aliasB" placeholder="Alias..." title="Alias eingeben"></h2>
           <div class="container-actions">
             <label class="upload-btn" title="Datei laden">
               <input type="file" id="fileB" accept=".json">
@@ -76,6 +76,9 @@
           <button class="filter-btn" data-filter="removed">Nur in A</button>
           <button class="filter-btn" data-filter="added">Nur in B</button>
           <button class="filter-btn" data-filter="changed">Unterschiedlich</button>
+        </div>
+        <div class="property-filter">
+          <input type="text" id="propertyFilter" placeholder="Property filtern..." title="z.B. 'email' oder 'adresse.plz'">
         </div>
         <button id="toggleAllBtn" class="toggle-all-btn">Alle zuklappen</button>
         <button id="exportBtn" class="export-btn">Exportieren</button>

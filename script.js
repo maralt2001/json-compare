@@ -15,9 +15,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const clearSingleBtns = document.querySelectorAll('.clear-single-btn');
     const expandBtns = document.querySelectorAll('.expand-btn');
     const copyBtns = document.querySelectorAll('.copy-btn');
+    const aliasA = document.getElementById('aliasA');
+    const aliasB = document.getElementById('aliasB');
+    const propertyFilter = document.getElementById('propertyFilter');
 
     let allCollapsed = false;
     let currentFilter = 'all';
+    let propertyFilterValue = '';
     let lastDifferences = [];
 
     fileA.addEventListener('change', (e) => handleFileSelect(e.target.files[0], jsonATextarea));
@@ -40,6 +44,8 @@ document.addEventListener('DOMContentLoaded', function() {
         allCollapsed = true;
         toggleAllBtn.textContent = 'Alle aufklappen';
         currentFilter = 'all';
+        propertyFilterValue = '';
+        propertyFilter.value = '';
         filterButtons.forEach(btn => {
             const filter = btn.dataset.filter;
             btn.classList.toggle('active', filter === 'all');
@@ -228,15 +234,22 @@ document.addEventListener('DOMContentLoaded', function() {
     function applyFilter() {
         const diffLines = diffResult.querySelectorAll('.diff-line');
         diffLines.forEach(line => {
-            if (currentFilter === 'all') {
-                line.style.display = '';
-            } else if (line.classList.contains('diff-' + currentFilter)) {
+            const path = line.querySelector('.diff-path')?.textContent || '';
+            const matchesType = currentFilter === 'all' || line.classList.contains('diff-' + currentFilter);
+            const matchesProperty = !propertyFilterValue || path.toLowerCase().includes(propertyFilterValue.toLowerCase());
+
+            if (matchesType && matchesProperty) {
                 line.style.display = '';
             } else {
                 line.style.display = 'none';
             }
         });
     }
+
+    propertyFilter.addEventListener('input', (e) => {
+        propertyFilterValue = e.target.value.trim();
+        applyFilter();
+    });
 
     function toggleAll() {
         const diffLines = diffResult.querySelectorAll('.diff-line');
@@ -259,10 +272,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        const nameA = aliasA.value.trim() || 'A';
+        const nameB = aliasB.value.trim() || 'B';
+
         const lines = [
             'JSON Vergleich - Ergebnisse',
             '=' .repeat(50),
             `Datum: ${new Date().toLocaleString('de-DE')}`,
+            `Vergleich: ${nameA} ⇄ ${nameB}`,
             `Anzahl Unterschiede: ${lastDifferences.length}`,
             '',
             '─'.repeat(50),
@@ -274,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const changed = lastDifferences.filter(d => d.type === 'changed');
 
         if (removed.length > 0) {
-            lines.push(`NUR IN A (${removed.length}):`);
+            lines.push(`NUR IN ${nameA} (${removed.length}):`);
             lines.push('─'.repeat(30));
             removed.forEach(diff => {
                 lines.push(`  - ${diff.path}: ${JSON.stringify(diff.valueA)}`);
@@ -283,7 +300,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (added.length > 0) {
-            lines.push(`NUR IN B (${added.length}):`);
+            lines.push(`NUR IN ${nameB} (${added.length}):`);
             lines.push('─'.repeat(30));
             added.forEach(diff => {
                 lines.push(`  + ${diff.path}: ${JSON.stringify(diff.valueB)}`);
@@ -296,8 +313,8 @@ document.addEventListener('DOMContentLoaded', function() {
             lines.push('─'.repeat(30));
             changed.forEach(diff => {
                 lines.push(`  ~ ${diff.path}:`);
-                lines.push(`      A: ${JSON.stringify(diff.valueA)}`);
-                lines.push(`      B: ${JSON.stringify(diff.valueB)}`);
+                lines.push(`      ${nameA}: ${JSON.stringify(diff.valueA)}`);
+                lines.push(`      ${nameB}: ${JSON.stringify(diff.valueB)}`);
             });
             lines.push('');
         }
@@ -344,8 +361,44 @@ document.addEventListener('DOMContentLoaded', function() {
         displayDifferences(differences);
     }
 
+    function compareArrays(arrA, arrB, path) {
+        const differences = [];
+
+        const serialize = (val) => JSON.stringify(val);
+        const setB = new Set(arrB.map(serialize));
+        const setA = new Set(arrA.map(serialize));
+
+        arrA.forEach((item, index) => {
+            const serialized = serialize(item);
+            if (!setB.has(serialized)) {
+                differences.push({
+                    type: 'removed',
+                    path: `${path}[${index}]`,
+                    valueA: item
+                });
+            }
+        });
+
+        arrB.forEach((item, index) => {
+            const serialized = serialize(item);
+            if (!setA.has(serialized)) {
+                differences.push({
+                    type: 'added',
+                    path: `${path}[${index}]`,
+                    valueB: item
+                });
+            }
+        });
+
+        return differences;
+    }
+
     function findDifferences(objA, objB, path) {
         const differences = [];
+
+        if (Array.isArray(objA) && Array.isArray(objB)) {
+            return compareArrays(objA, objB, path);
+        }
 
         const allKeys = new Set([
             ...Object.keys(objA || {}),
@@ -376,18 +429,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     valueA: valueA,
                     valueB: valueB
                 });
+            } else if (Array.isArray(valueA) && Array.isArray(valueB)) {
+                const arrayDiffs = compareArrays(valueA, valueB, currentPath);
+                differences.push(...arrayDiffs);
             } else if (typeof valueA === 'object' && valueA !== null && valueB !== null) {
-                if (Array.isArray(valueA) !== Array.isArray(valueB)) {
-                    differences.push({
-                        type: 'changed',
-                        path: currentPath,
-                        valueA: valueA,
-                        valueB: valueB
-                    });
-                } else {
-                    const nestedDiffs = findDifferences(valueA, valueB, currentPath);
-                    differences.push(...nestedDiffs);
-                }
+                const nestedDiffs = findDifferences(valueA, valueB, currentPath);
+                differences.push(...nestedDiffs);
             } else if (valueA !== valueB) {
                 differences.push({
                     type: 'changed',
@@ -406,6 +453,9 @@ document.addEventListener('DOMContentLoaded', function() {
         allCollapsed = true;
         toggleAllBtn.textContent = 'Alle aufklappen';
         currentFilter = 'all';
+
+        const nameA = aliasA.value.trim() || 'A';
+        const nameB = aliasB.value.trim() || 'B';
 
         const counts = {
             all: differences.length,
@@ -435,12 +485,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 case 'added':
                     line.classList.add('diff-added');
                     icon = '+';
-                    hint = '(nur in B)';
+                    hint = `(nur in ${nameB})`;
                     break;
                 case 'removed':
                     line.classList.add('diff-removed');
                     icon = '-';
-                    hint = '(nur in A)';
+                    hint = `(nur in ${nameA})`;
                     break;
                 case 'changed':
                     line.classList.add('diff-changed');
@@ -457,11 +507,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="diff-compare">
                     <div class="diff-side side-a">
-                        <span class="diff-label">A</span>
+                        <span class="diff-label">${nameA}</span>
                         <span class="diff-value">${diff.type === 'added' ? '<span class="empty">—</span>' : formatValue(diff.valueA)}</span>
                     </div>
                     <div class="diff-side side-b">
-                        <span class="diff-label">B</span>
+                        <span class="diff-label">${nameB}</span>
                         <span class="diff-value">${diff.type === 'removed' ? '<span class="empty">—</span>' : formatValue(diff.valueB)}</span>
                     </div>
                 </div>
