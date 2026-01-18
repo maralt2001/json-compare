@@ -714,9 +714,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Prüfe ob der exakte Pfad ausgewählt ist
         if (selectedProperties.has(path)) return true;
 
-        // Normalisiere: Entferne Array-Indizes und prüfe erneut
+        // Normalisiere: Entferne Array-Notationen und prüfe erneut
         // z.B. "results[0].user.email" -> "results.user.email"
-        const normalizedPath = path.replace(/\[\d+\]/g, '');
+        // z.B. "friends[vorname=stefan].age" -> "friends.age"
+        const normalizedPath = path.replace(/\[[^\]]+\]/g, '');
         return selectedProperties.has(normalizedPath);
     }
 
@@ -737,8 +738,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return selectedProperties.size > 0;
         }
 
-        // Normalisiere: Entferne Array-Indizes
-        const normalizedPath = path.replace(/\[\d+\]/g, '');
+        // Normalisiere: Entferne Array-Notationen (numerisch und key-basiert)
+        const normalizedPath = path.replace(/\[[^\]]+\]/g, '');
         const prefix = normalizedPath + '.';
 
         // Suche nach Kind-Pfaden die mit diesem Prefix beginnen
@@ -794,17 +795,77 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
+     * Findet einen gemeinsamen Schlüssel in allen Objekten beider Arrays.
+     * Priorisiert 'id', 'name', 'key', dann den ersten gemeinsamen String-Key.
+     *
+     * @param {Array} arrA - Array aus JSON A
+     * @param {Array} arrB - Array aus JSON B
+     * @returns {string|null} Gefundener Schlüssel oder null
+     */
+    function findCommonKey(arrA, arrB) {
+        const objectsA = arrA.filter(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+        const objectsB = arrB.filter(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+
+        if (objectsA.length === 0 || objectsB.length === 0) return null;
+
+        // Finde Keys die in ALLEN Objekten beider Arrays vorkommen
+        const keysInAllA = objectsA.reduce((common, obj) => {
+            const objKeys = Object.keys(obj);
+            return common === null ? new Set(objKeys) : new Set([...common].filter(k => objKeys.includes(k)));
+        }, null) || new Set();
+
+        const keysInAllB = objectsB.reduce((common, obj) => {
+            const objKeys = Object.keys(obj);
+            return common === null ? new Set(objKeys) : new Set([...common].filter(k => objKeys.includes(k)));
+        }, null) || new Set();
+
+        const commonKeys = [...keysInAllA].filter(k => keysInAllB.has(k));
+
+        // Priorisiere bestimmte Keys
+        const priorityKeys = ['id', 'name', 'vorname', 'key', '_id', 'uuid'];
+        for (const pk of priorityKeys) {
+            if (commonKeys.includes(pk)) {
+                // Stelle sicher dass der Key eindeutige Werte hat (zumindest in einem Array)
+                const valuesA = objectsA.map(obj => obj[pk]);
+                const valuesB = objectsB.map(obj => obj[pk]);
+                const uniqueA = new Set(valuesA).size === valuesA.length;
+                const uniqueB = new Set(valuesB).size === valuesB.length;
+                if (uniqueA || uniqueB) return pk;
+            }
+        }
+
+        // Fallback: Ersten Key mit primitiven, eindeutigen Werten nehmen
+        for (const key of commonKeys) {
+            const valuesA = objectsA.map(obj => obj[key]);
+            const valuesB = objectsB.map(obj => obj[key]);
+            const allPrimitive = [...valuesA, ...valuesB].every(v =>
+                typeof v === 'string' || typeof v === 'number'
+            );
+            const uniqueA = new Set(valuesA).size === valuesA.length;
+            const uniqueB = new Set(valuesB).size === valuesB.length;
+            if (allPrimitive && (uniqueA || uniqueB)) return key;
+        }
+
+        return null;
+    }
+
+    /**
      * Vergleicht zwei Arrays und findet Unterschiede.
      *
-     * Es gibt zwei Vergleichs-Modi:
+     * Es gibt drei Vergleichs-Modi:
      *
-     * 1. STRUKTURELLER VERGLEICH (positionsbasiert):
-     *    Wenn das Array Objekte enthält UND Kind-Properties ausgewählt sind.
+     * 1. KEY-BASIERTER VERGLEICH (inhaltlich):
+     *    Wenn das Array Objekte enthält UND ein gemeinsamer Schlüssel gefunden wird.
+     *    Matcht Objekte nach ihrem Schlüsselwert (z.B. "name" oder "id").
+     *    Vergleicht dann die Properties der gematchten Objekte.
+     *    Beispiel: friends mit name "stefan" werden gematcht, unabhängig von Position.
+     *
+     * 2. STRUKTURELLER VERGLEICH (positionsbasiert):
+     *    Fallback wenn kein gemeinsamer Key gefunden wird.
      *    Vergleicht Element für Element an der gleichen Position.
      *    Beispiel: results[0] mit results[0], results[1] mit results[1], etc.
-     *    Ermöglicht Auswahl einzelner Felder wie "results.user.email".
      *
-     * 2. MENGEN-VERGLEICH (vorhandensbasiert):
+     * 3. MENGEN-VERGLEICH (vorhandensbasiert):
      *    Für einfache Arrays (Strings, Zahlen) oder wenn das Array selbst ausgewählt ist.
      *    Prüft nur ob Elemente vorhanden sind, nicht die Position.
      *    Beispiel: ["A", "B"] vs ["B", "C"] → A entfernt, C hinzugefügt
@@ -824,8 +885,65 @@ document.addEventListener('DOMContentLoaded', function() {
         const hasObjectsA = arrA.some(item => typeof item === 'object' && item !== null && !Array.isArray(item));
         const hasObjectsB = arrB.some(item => typeof item === 'object' && item !== null && !Array.isArray(item));
 
-        // MODUS 1: Struktureller Vergleich für Objekt-Arrays mit Kind-Auswahl
+        // MODUS 1 & 2: Vergleich für Objekt-Arrays mit Kind-Auswahl
         if ((hasObjectsA || hasObjectsB) && hasSelectedChildren(path)) {
+
+            // Versuche key-basierten Vergleich
+            const commonKey = findCommonKey(arrA, arrB);
+
+            if (commonKey) {
+                // MODUS 1: KEY-BASIERTER VERGLEICH
+                const objectsA = arrA.filter(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+                const objectsB = arrB.filter(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+
+                // Erstelle Maps für schnellen Zugriff
+                const mapA = new Map();
+                const mapB = new Map();
+
+                objectsA.forEach((obj, idx) => {
+                    const keyValue = obj[commonKey];
+                    if (keyValue !== undefined) {
+                        mapA.set(String(keyValue), { obj, idx });
+                    }
+                });
+
+                objectsB.forEach((obj, idx) => {
+                    const keyValue = obj[commonKey];
+                    if (keyValue !== undefined) {
+                        mapB.set(String(keyValue), { obj, idx });
+                    }
+                });
+
+                // Alle eindeutigen Key-Werte sammeln
+                const allKeyValues = new Set([...mapA.keys(), ...mapB.keys()]);
+
+                for (const keyValue of allKeyValues) {
+                    const entryA = mapA.get(keyValue);
+                    const entryB = mapB.get(keyValue);
+
+                    if (!entryA) {
+                        // Objekt nur in B vorhanden
+                        if (isPropertySelected(path)) {
+                            const itemPath = `${path}[${commonKey}=${keyValue}]`;
+                            differences.push({ type: 'added', path: itemPath, valueB: entryB.obj });
+                        }
+                    } else if (!entryB) {
+                        // Objekt nur in A vorhanden
+                        if (isPropertySelected(path)) {
+                            const itemPath = `${path}[${commonKey}=${keyValue}]`;
+                            differences.push({ type: 'removed', path: itemPath, valueA: entryA.obj });
+                        }
+                    } else {
+                        // Beide vorhanden: rekursiv vergleichen
+                        const itemPath = `${path}[${commonKey}=${keyValue}]`;
+                        const nestedDiffs = findDifferences(entryA.obj, entryB.obj, itemPath);
+                        differences.push(...nestedDiffs);
+                    }
+                }
+                return differences;
+            }
+
+            // MODUS 2: STRUKTURELLER VERGLEICH (Fallback wenn kein gemeinsamer Key)
             const maxLen = Math.max(arrA.length, arrB.length);
 
             for (let i = 0; i < maxLen; i++) {
@@ -855,7 +973,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return differences;
         }
 
-        // MODUS 2: Mengen-Vergleich (Original-Logik)
+        // MODUS 3: Mengen-Vergleich (Original-Logik)
         // Nur wenn das Array selbst ausgewählt ist
         if (!isPropertySelected(path)) return differences;
 
