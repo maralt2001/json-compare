@@ -353,7 +353,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.75em;
+    margin-bottom: 1em;
 }
 
 .container h2 {
@@ -637,6 +637,7 @@ html, body {
 .result-section {
     padding: 1.5em;
     margin: 0 auto;
+    margin-top: 2em;
     max-width: 1250px;
 }
 
@@ -644,7 +645,7 @@ html, body {
     display: flex;
     align-items: center;
     gap: 1em;
-    margin-bottom: 0.75em;
+    margin-bottom: 1em;
     flex-wrap: wrap;
 }
 
