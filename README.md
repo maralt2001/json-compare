@@ -15,10 +15,22 @@ Eine clientseitige Webanwendung zum Vergleichen von JSON-Daten. Keine Server-Kom
 - **Aliase** für die JSON-Quellen (z.B. "Production", "Staging")
 - **Beispieldaten** zum schnellen Testen
 
+### Property-Vorauswahl (Pre-Comparison Selection)
+- **Properties scannen** extrahiert alle Felder aus beiden JSONs
+- **Multi-Select Dropdown** zur Auswahl der zu vergleichenden Properties
+- **Farbkodierung** zeigt Herkunft:
+  - Cyan: in beiden JSONs vorhanden
+  - Rot: nur in A
+  - Grün: nur in B
+- **Alle auswählen / Alle abwählen** für schnelle Selektion
+- **Unbegrenzte Tiefe** - funktioniert mit beliebig verschachtelten Strukturen
+- **Einrückung** visualisiert die Verschachtelungsebene
+
 ### Vergleich
 - **Struktureller Vergleich** von JSON-Objekten
 - **Array-Vergleich** nach Vorhandensein (nicht nach Position)
 - **Rekursiver Vergleich** verschachtelter Objekte
+- **Selektiver Vergleich** nur ausgewählter Properties
 - **Drei Unterschiedstypen**:
   - Nur in A (rot)
   - Nur in B (grün)
@@ -40,8 +52,17 @@ Eine clientseitige Webanwendung zum Vergleichen von JSON-Daten. Keine Server-Kom
 1. `compare.html` im Browser öffnen
 2. JSON-Daten in die Textfelder eingeben oder Dateien laden
 3. Optional: Aliase für die Quellen eingeben
-4. "A ⇄ B Vergleichen" klicken
-5. Unterschiede analysieren, filtern und ggf. exportieren
+4. Optional: "Properties scannen" klicken und gewünschte Properties auswählen
+5. "A ⇄ B Vergleichen" klicken
+6. Unterschiede analysieren, filtern und ggf. exportieren
+
+### Workflow mit Property-Vorauswahl
+
+```
+JSON eingeben → Properties scannen → Properties auswählen → Vergleichen
+```
+
+Dies ist besonders nützlich bei großen JSONs, wenn nur bestimmte Felder relevant sind.
 
 ## Technologie
 

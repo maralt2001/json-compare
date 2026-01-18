@@ -12,6 +12,12 @@
     --cyan-500: #06b6d4;
     --cyan-600: #0891b2;
 
+    /* Tailwind Violet für Property Selector */
+    --violet-300: #c4b5fd;
+    --violet-400: #a78bfa;
+    --violet-500: #8b5cf6;
+    --violet-600: #7c3aed;
+
     /* Dark Grays */
     --gray-900: #111827;
     --gray-800: #1f2937;
@@ -115,6 +121,182 @@ html, body {
 .controls button#exampleBtn:hover {
     background: var(--gray-600);
     color: var(--text-primary);
+}
+
+.controls button#scanPropsBtn {
+    background: var(--violet-600);
+    color: white;
+    border: 1px solid var(--violet-600);
+}
+
+.controls button#scanPropsBtn:hover {
+    background: var(--violet-500);
+    border-color: var(--violet-500);
+}
+
+/* Property Selector Dropdown */
+.property-selector {
+    position: relative;
+    display: inline-block;
+}
+
+.controls .prop-selector-btn,
+.controls button.prop-selector-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.75em 1.25em;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--violet-600);
+    border-radius: var(--radius-md);
+    background: var(--violet-600);
+    color: white;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.controls .prop-selector-btn:hover:not(:disabled),
+.controls button.prop-selector-btn:hover:not(:disabled) {
+    background: var(--violet-500);
+    border-color: var(--violet-500);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.controls .prop-selector-btn:disabled,
+.controls button.prop-selector-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--gray-700);
+    border-color: var(--gray-600);
+    color: var(--gray-500);
+    transform: none;
+}
+
+.prop-selector-arrow {
+    font-size: 0.7em;
+    transition: transform 0.2s ease;
+}
+
+.prop-selector-dropdown.open + .prop-selector-btn .prop-selector-arrow,
+.property-selector:has(.prop-selector-dropdown.open) .prop-selector-arrow {
+    transform: rotate(180deg);
+}
+
+.prop-selector-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 280px;
+    max-width: 400px;
+    margin-top: 0.5em;
+    background: var(--gray-800);
+    border: 2px solid var(--violet-600);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    display: none;
+}
+
+.prop-selector-dropdown.open {
+    display: block;
+}
+
+.prop-selector-actions {
+    display: flex;
+    gap: 1em;
+    padding: 0.75em 1em;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.prop-selector-actions a {
+    color: var(--violet-400);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.prop-selector-actions a:hover {
+    color: var(--violet-300);
+    text-decoration: underline;
+}
+
+.prop-selector-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0.5em 0;
+}
+
+.prop-selector-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    padding: 0.5em 0.75em;
+    cursor: pointer;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem;
+    transition: background 0.15s ease;
+}
+
+.prop-selector-item:hover {
+    background: var(--gray-700);
+}
+
+.prop-selector-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--violet-600);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.prop-selector-item span {
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Farbkodierung für Property-Herkunft */
+.prop-selector-item.prop-both span {
+    color: var(--primary-color);
+}
+
+.prop-selector-item.prop-only-a span {
+    color: var(--removed-color);
+}
+
+.prop-selector-item.prop-only-b span {
+    color: var(--added-color);
+}
+
+.prop-selector-item.prop-both::before {
+    content: '';
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    flex-shrink: 0;
+}
+
+.prop-selector-item.prop-only-a::before {
+    content: '';
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--removed-color);
+    flex-shrink: 0;
+}
+
+.prop-selector-item.prop-only-b::before {
+    content: '';
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--added-color);
+    flex-shrink: 0;
 }
 
 .content {

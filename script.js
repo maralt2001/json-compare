@@ -18,11 +18,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const aliasA = document.getElementById('aliasA');
     const aliasB = document.getElementById('aliasB');
     const propertyFilter = document.getElementById('propertyFilter');
+    const scanPropsBtn = document.getElementById('scanPropsBtn');
+    const propSelectorBtn = document.getElementById('propSelectorBtn');
+    const propSelectorDropdown = document.getElementById('propSelectorDropdown');
+    const propSelectorList = document.getElementById('propSelectorList');
+    const selectAllProps = document.getElementById('selectAllProps');
+    const deselectAllProps = document.getElementById('deselectAllProps');
 
     let allCollapsed = false;
     let currentFilter = 'all';
     let propertyFilterValue = '';
     let lastDifferences = [];
+    let selectedProperties = null; // null = alle vergleichen
+    let allScannedProperties = []; // alle gescannten Properties mit Herkunft
 
     fileA.addEventListener('change', (e) => handleFileSelect(e.target.files[0], jsonATextarea));
     fileB.addEventListener('change', (e) => handleFileSelect(e.target.files[0], jsonBTextarea));
@@ -35,6 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
             textarea.value = '';
             updateHighlight(textarea, highlight);
             resetDiffState();
+            resetPropertySelector();
         });
     });
 
@@ -53,6 +62,187 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.innerHTML = `${label} <span class="filter-count">(0)</span>`;
         });
     }
+
+    function resetPropertySelector() {
+        selectedProperties = null;
+        allScannedProperties = [];
+        propSelectorBtn.disabled = true;
+        propSelectorBtn.querySelector('.prop-selector-text').textContent = 'Properties auswählen';
+        propSelectorList.innerHTML = '';
+        propSelectorDropdown.classList.remove('open');
+    }
+
+    function extractAllProperties(obj, path = '', source = 'both') {
+        const properties = [];
+
+        if (obj === null || typeof obj !== 'object') {
+            return properties;
+        }
+
+        if (Array.isArray(obj)) {
+            obj.forEach((item, index) => {
+                if (typeof item === 'object' && item !== null) {
+                    properties.push(...extractAllProperties(item, path, source));
+                }
+            });
+            return properties;
+        }
+
+        for (const key of Object.keys(obj)) {
+            const currentPath = path ? `${path}.${key}` : key;
+            properties.push({ path: currentPath, source });
+
+            const value = obj[key];
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                properties.push(...extractAllProperties(value, currentPath, source));
+            } else if (Array.isArray(value)) {
+                value.forEach((item) => {
+                    if (typeof item === 'object' && item !== null) {
+                        properties.push(...extractAllProperties(item, currentPath, source));
+                    }
+                });
+            }
+        }
+
+        return properties;
+    }
+
+    function scanProperties() {
+        const jsonAText = jsonATextarea.value.trim();
+        const jsonBText = jsonBTextarea.value.trim();
+
+        if (!jsonAText && !jsonBText) {
+            showError('Bitte mindestens ein JSON-Feld ausfüllen.');
+            return;
+        }
+
+        let jsonA = null, jsonB = null;
+
+        if (jsonAText) {
+            try {
+                jsonA = JSON.parse(jsonAText);
+            } catch (e) {
+                showError('JSON A ist ungültig: ' + e.message);
+                return;
+            }
+        }
+
+        if (jsonBText) {
+            try {
+                jsonB = JSON.parse(jsonBText);
+            } catch (e) {
+                showError('JSON B ist ungültig: ' + e.message);
+                return;
+            }
+        }
+
+        const propsA = jsonA ? extractAllProperties(jsonA, '', 'A') : [];
+        const propsB = jsonB ? extractAllProperties(jsonB, '', 'B') : [];
+
+        // Kombiniere und dedupliziere Properties
+        const propMap = new Map();
+
+        propsA.forEach(p => {
+            propMap.set(p.path, { path: p.path, inA: true, inB: false });
+        });
+
+        propsB.forEach(p => {
+            if (propMap.has(p.path)) {
+                propMap.get(p.path).inB = true;
+            } else {
+                propMap.set(p.path, { path: p.path, inA: false, inB: true });
+            }
+        });
+
+        allScannedProperties = Array.from(propMap.values()).sort((a, b) => a.path.localeCompare(b.path));
+        selectedProperties = new Set(allScannedProperties.map(p => p.path));
+
+        renderPropertySelector();
+        propSelectorBtn.disabled = false;
+        updatePropertySelectorButtonText();
+    }
+
+    function renderPropertySelector() {
+        propSelectorList.innerHTML = '';
+
+        allScannedProperties.forEach(prop => {
+            const item = document.createElement('label');
+            item.className = 'prop-selector-item';
+
+            // Farbkodierung basierend auf Herkunft
+            if (prop.inA && prop.inB) {
+                item.classList.add('prop-both');
+            } else if (prop.inA) {
+                item.classList.add('prop-only-a');
+            } else {
+                item.classList.add('prop-only-b');
+            }
+
+            // Einrückung basierend auf Verschachtelungstiefe
+            const depth = (prop.path.match(/\./g) || []).length;
+            item.style.paddingLeft = `${0.75 + depth * 1}em`;
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = selectedProperties.has(prop.path);
+            checkbox.dataset.path = prop.path;
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    selectedProperties.add(prop.path);
+                } else {
+                    selectedProperties.delete(prop.path);
+                }
+                updatePropertySelectorButtonText();
+            });
+
+            const text = document.createElement('span');
+            text.textContent = prop.path;
+
+            item.appendChild(checkbox);
+            item.appendChild(text);
+            propSelectorList.appendChild(item);
+        });
+    }
+
+    function updatePropertySelectorButtonText() {
+        const total = allScannedProperties.length;
+        const selected = selectedProperties ? selectedProperties.size : 0;
+        propSelectorBtn.querySelector('.prop-selector-text').textContent =
+            `Properties (${selected}/${total})`;
+    }
+
+    scanPropsBtn.addEventListener('click', scanProperties);
+
+    propSelectorBtn.addEventListener('click', () => {
+        if (!propSelectorBtn.disabled) {
+            propSelectorDropdown.classList.toggle('open');
+        }
+    });
+
+    selectAllProps.addEventListener('click', (e) => {
+        e.preventDefault();
+        selectedProperties = new Set(allScannedProperties.map(p => p.path));
+        propSelectorList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+        });
+        updatePropertySelectorButtonText();
+    });
+
+    deselectAllProps.addEventListener('click', (e) => {
+        e.preventDefault();
+        selectedProperties = new Set();
+        propSelectorList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+        updatePropertySelectorButtonText();
+    });
+
+    // Klick außerhalb schließt Dropdown
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.property-selector')) {
+            propSelectorDropdown.classList.remove('open');
+        }
+    });
 
     copyBtns.forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -361,8 +551,37 @@ document.addEventListener('DOMContentLoaded', function() {
         displayDifferences(differences);
     }
 
+    function isPropertySelected(path) {
+        if (selectedProperties === null) return true;
+        // Prüfe ob der Pfad selbst oder ein Eltern-Pfad ausgewählt ist
+        const pathParts = path.split('.');
+        for (let i = pathParts.length; i > 0; i--) {
+            const checkPath = pathParts.slice(0, i).join('.');
+            if (selectedProperties.has(checkPath)) return true;
+        }
+        return false;
+    }
+
+    function hasSelectedChildren(path) {
+        if (selectedProperties === null) return true;
+        // Prüfe ob es Kind-Pfade gibt, die ausgewählt sind
+        const prefix = path ? path + '.' : '';
+        for (const prop of selectedProperties) {
+            if (prop.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+
+    function shouldProcessProperty(path) {
+        // Property soll verarbeitet werden wenn sie selbst ausgewählt ist ODER Kind-Pfade hat
+        return isPropertySelected(path) || hasSelectedChildren(path);
+    }
+
     function compareArrays(arrA, arrB, path) {
         const differences = [];
+
+        // Wenn der Pfad nicht ausgewählt ist, überspringe
+        if (!isPropertySelected(path)) return differences;
 
         const serialize = (val) => JSON.stringify(val);
         const setB = new Set(arrB.map(serialize));
@@ -407,28 +626,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
         for (const key of allKeys) {
             const currentPath = path ? `${path}.${key}` : key;
+
+            // Prüfe ob diese Property verarbeitet werden soll (selbst ausgewählt oder hat ausgewählte Kinder)
+            if (!shouldProcessProperty(currentPath)) continue;
+
             const valueA = objA ? objA[key] : undefined;
             const valueB = objB ? objB[key] : undefined;
+            const shouldReport = isPropertySelected(currentPath);
 
             if (!(key in (objA || {}))) {
-                differences.push({
-                    type: 'added',
-                    path: currentPath,
-                    valueB: valueB
-                });
+                if (shouldReport) {
+                    differences.push({
+                        type: 'added',
+                        path: currentPath,
+                        valueB: valueB
+                    });
+                }
             } else if (!(key in (objB || {}))) {
-                differences.push({
-                    type: 'removed',
-                    path: currentPath,
-                    valueA: valueA
-                });
+                if (shouldReport) {
+                    differences.push({
+                        type: 'removed',
+                        path: currentPath,
+                        valueA: valueA
+                    });
+                }
             } else if (typeof valueA !== typeof valueB) {
-                differences.push({
-                    type: 'changed',
-                    path: currentPath,
-                    valueA: valueA,
-                    valueB: valueB
-                });
+                if (shouldReport) {
+                    differences.push({
+                        type: 'changed',
+                        path: currentPath,
+                        valueA: valueA,
+                        valueB: valueB
+                    });
+                }
             } else if (Array.isArray(valueA) && Array.isArray(valueB)) {
                 const arrayDiffs = compareArrays(valueA, valueB, currentPath);
                 differences.push(...arrayDiffs);
@@ -436,12 +666,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const nestedDiffs = findDifferences(valueA, valueB, currentPath);
                 differences.push(...nestedDiffs);
             } else if (valueA !== valueB) {
-                differences.push({
-                    type: 'changed',
-                    path: currentPath,
-                    valueA: valueA,
-                    valueB: valueB
-                });
+                if (shouldReport) {
+                    differences.push({
+                        type: 'changed',
+                        path: currentPath,
+                        valueA: valueA,
+                        valueB: valueB
+                    });
+                }
             }
         }
 

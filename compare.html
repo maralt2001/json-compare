@@ -14,6 +14,20 @@
     <div class="controls">
       <button id="compareBtn"><span class="btn-icon">A ⇄ B</span> Vergleichen</button>
       <button id="formatBtn"><span class="btn-icon">{ }</span> Formatieren</button>
+      <button id="scanPropsBtn">Properties scannen</button>
+      <div class="property-selector">
+        <button id="propSelectorBtn" class="prop-selector-btn" disabled>
+          <span class="prop-selector-text">Properties auswählen</span>
+          <span class="prop-selector-arrow">▼</span>
+        </button>
+        <div id="propSelectorDropdown" class="prop-selector-dropdown">
+          <div class="prop-selector-actions">
+            <a href="#" id="selectAllProps">Alle auswählen</a>
+            <a href="#" id="deselectAllProps">Alle abwählen</a>
+          </div>
+          <div class="prop-selector-list" id="propSelectorList"></div>
+        </div>
+      </div>
       <button id="exampleBtn">Beispiel laden</button>
     </div>
 
