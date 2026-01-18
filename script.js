@@ -63,6 +63,44 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    /* ========================================================================
+     * PROPERTY PRE-SELECTION (Vorauswahl)
+     * ========================================================================
+     *
+     * Ermöglicht dem Benutzer, vor dem Vergleich auszuwählen, welche
+     * Properties verglichen werden sollen.
+     *
+     * ARCHITEKTUR:
+     * ────────────────────────────────────────────────────────────────────────
+     *
+     * 1. SCANNEN (extractAllProperties, scanProperties)
+     *    - Extrahiert alle Property-Pfade aus beiden JSONs
+     *    - Speichert Herkunft: nur in A, nur in B, oder in beiden
+     *    - Pfade ohne Array-Indizes (z.B. "results.user.email")
+     *
+     * 2. BAUM-DARSTELLUNG (buildPropertyTree, renderTreeLevel)
+     *    - Wandelt flache Pfad-Liste in hierarchischen Baum
+     *    - Aufklappbare Ebenen mit Pfeilen
+     *    - Checkboxen für Auswahl
+     *
+     * 3. AUSWAHL-LOGIK (isPropertySelected, hasSelectedChildren, shouldProcessProperty)
+     *    - isPropertySelected: Prüft ob Pfad ausgewählt (für Ergebnis-Meldung)
+     *    - hasSelectedChildren: Prüft ob Kind-Pfade ausgewählt (für Traversierung)
+     *    - shouldProcessProperty: Kombiniert beide (für Entscheidung ob durchlaufen)
+     *
+     * 4. VERGLEICH (findDifferences, compareArrays)
+     *    - Nutzt die Auswahl-Funktionen
+     *    - Traversiert auch nicht-ausgewählte Eltern wenn Kinder ausgewählt sind
+     *    - Meldet nur ausgewählte Properties als Unterschiede
+     *
+     * WICHTIG: Array-Indizes
+     * ────────────────────────────────────────────────────────────────────────
+     * - Beim Scannen: Pfade OHNE Index (z.B. "results.user.email")
+     * - Beim Vergleich: Pfade MIT Index (z.B. "results[0].user.email")
+     * - isPropertySelected normalisiert Pfade (entfernt [0], [1], etc.)
+     *
+     * ======================================================================== */
+
     function resetPropertySelector() {
         selectedProperties = null;
         allScannedProperties = [];
@@ -72,6 +110,20 @@ document.addEventListener('DOMContentLoaded', function() {
         propSelectorDropdown.classList.remove('open');
     }
 
+    /**
+     * Extrahiert alle Property-Pfade aus einem JSON-Objekt (rekursiv).
+     *
+     * Beispiel-Input:  { user: { name: "Max", email: "max@example.com" }, active: true }
+     * Beispiel-Output: ["user", "user.name", "user.email", "active"]
+     *
+     * Bei Arrays werden die Pfade OHNE Index extrahiert, da die Auswahl
+     * für alle Array-Elemente gelten soll (z.B. "results.user.email" statt "results[0].user.email").
+     *
+     * @param {Object} obj - Das zu scannende JSON-Objekt
+     * @param {string} path - Aktueller Pfad-Prefix (für Rekursion)
+     * @param {string} source - Herkunft: 'A', 'B' oder 'both'
+     * @returns {Array} Liste von {path, source} Objekten
+     */
     function extractAllProperties(obj, path = '', source = 'both') {
         const properties = [];
 
@@ -79,6 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return properties;
         }
 
+        // Bei Arrays: Durchlaufe Elemente, aber behalte den Array-Pfad (ohne Index)
         if (Array.isArray(obj)) {
             obj.forEach((item, index) => {
                 if (typeof item === 'object' && item !== null) {
@@ -88,14 +141,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return properties;
         }
 
+        // Bei Objekten: Füge jeden Key als Property hinzu und gehe rekursiv tiefer
         for (const key of Object.keys(obj)) {
             const currentPath = path ? `${path}.${key}` : key;
             properties.push({ path: currentPath, source });
 
             const value = obj[key];
             if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                // Verschachteltes Objekt: rekursiv weitermachen
                 properties.push(...extractAllProperties(value, currentPath, source));
             } else if (Array.isArray(value)) {
+                // Array: Elemente durchlaufen (Pfad bleibt ohne Index)
                 value.forEach((item) => {
                     if (typeof item === 'object' && item !== null) {
                         properties.push(...extractAllProperties(item, currentPath, source));
@@ -162,45 +218,137 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePropertySelectorButtonText();
     }
 
+    /**
+     * Wandelt die flache Property-Liste in eine Baum-Struktur um.
+     *
+     * Beispiel-Input:  ["user", "user.name", "user.email"]
+     * Beispiel-Output: { user: { _props: {...}, _children: { name: {...}, email: {...} } } }
+     *
+     * Diese Struktur ermöglicht die hierarchische Darstellung im Dropdown
+     * mit aufklappbaren Ebenen.
+     *
+     * @param {Array} properties - Flache Liste von Property-Objekten
+     * @returns {Object} Baum-Struktur für die UI-Darstellung
+     */
+    function buildPropertyTree(properties) {
+        const tree = {};
+
+        properties.forEach(prop => {
+            const parts = prop.path.split('.');
+            let current = tree;
+
+            parts.forEach((part, index) => {
+                if (!current[part]) {
+                    current[part] = {
+                        _children: {},  // Kind-Properties
+                        _props: null    // Property-Daten (path, inA, inB)
+                    };
+                }
+                // Am Ende des Pfads: Property-Daten speichern
+                if (index === parts.length - 1) {
+                    current[part]._props = prop;
+                }
+                current = current[part]._children;
+            });
+        });
+
+        return tree;
+    }
+
     function renderPropertySelector() {
         propSelectorList.innerHTML = '';
 
-        allScannedProperties.forEach(prop => {
-            const item = document.createElement('label');
-            item.className = 'prop-selector-item';
+        const tree = buildPropertyTree(allScannedProperties);
+        renderTreeLevel(tree, propSelectorList, 0, '');
+    }
 
-            // Farbkodierung basierend auf Herkunft
-            if (prop.inA && prop.inB) {
-                item.classList.add('prop-both');
-            } else if (prop.inA) {
-                item.classList.add('prop-only-a');
-            } else {
-                item.classList.add('prop-only-b');
+    function renderTreeLevel(tree, container, depth, parentPath) {
+        const keys = Object.keys(tree).sort();
+
+        keys.forEach(key => {
+            const node = tree[key];
+            const currentPath = parentPath ? `${parentPath}.${key}` : key;
+            const hasChildren = Object.keys(node._children).length > 0;
+            const prop = node._props;
+
+            // Container für diesen Knoten
+            const nodeContainer = document.createElement('div');
+            nodeContainer.className = 'prop-tree-node';
+
+            // Das Item (Zeile)
+            const item = document.createElement('div');
+            item.className = 'prop-selector-item';
+            item.style.paddingLeft = `${0.5 + depth * 1.2}em`;
+
+            // Farbkodierung
+            if (prop) {
+                if (prop.inA && prop.inB) {
+                    item.classList.add('prop-both');
+                } else if (prop.inA) {
+                    item.classList.add('prop-only-a');
+                } else {
+                    item.classList.add('prop-only-b');
+                }
             }
 
-            // Einrückung basierend auf Verschachtelungstiefe
-            const depth = (prop.path.match(/\./g) || []).length;
-            item.style.paddingLeft = `${0.75 + depth * 1}em`;
+            // Pfeil für aufklappbare Elemente
+            const arrow = document.createElement('span');
+            arrow.className = 'prop-tree-arrow';
+            if (hasChildren) {
+                arrow.classList.add('has-children');
+                arrow.textContent = '▶';
+                arrow.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    nodeContainer.classList.toggle('expanded');
+                    arrow.textContent = nodeContainer.classList.contains('expanded') ? '▼' : '▶';
+                });
+            }
+            item.appendChild(arrow);
 
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.checked = selectedProperties.has(prop.path);
-            checkbox.dataset.path = prop.path;
-            checkbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    selectedProperties.add(prop.path);
-                } else {
-                    selectedProperties.delete(prop.path);
-                }
-                updatePropertySelectorButtonText();
-            });
+            // Checkbox
+            if (prop) {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = selectedProperties.has(prop.path);
+                checkbox.dataset.path = prop.path;
+                checkbox.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    if (e.target.checked) {
+                        selectedProperties.add(prop.path);
+                    } else {
+                        selectedProperties.delete(prop.path);
+                    }
+                    // Auch alle Kind-Properties mit aktualisieren
+                    if (hasChildren) {
+                        toggleChildProperties(prop.path, e.target.checked);
+                    }
+                    updatePropertySelectorButtonText();
+                });
+                item.appendChild(checkbox);
+            } else {
+                // Platzhalter für Alignment wenn keine Checkbox
+                const spacer = document.createElement('span');
+                spacer.className = 'prop-checkbox-spacer';
+                item.appendChild(spacer);
+            }
 
+            // Property-Name (nur der letzte Teil)
             const text = document.createElement('span');
-            text.textContent = prop.path;
-
-            item.appendChild(checkbox);
+            text.className = 'prop-name';
+            text.textContent = key;
             item.appendChild(text);
-            propSelectorList.appendChild(item);
+
+            nodeContainer.appendChild(item);
+
+            // Kinder-Container
+            if (hasChildren) {
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'prop-tree-children';
+                renderTreeLevel(node._children, childrenContainer, depth + 1, currentPath);
+                nodeContainer.appendChild(childrenContainer);
+            }
+
+            container.appendChild(nodeContainer);
         });
     }
 
@@ -551,36 +699,164 @@ document.addEventListener('DOMContentLoaded', function() {
         displayDifferences(differences);
     }
 
+    /**
+     * Prüft ob ein Property-Pfad für den Vergleich ausgewählt ist.
+     *
+     * Wichtig: Array-Indizes werden ignoriert, damit die Auswahl von
+     * "results.user.email" auch für "results[0].user.email" gilt.
+     *
+     * @param {string} path - Der zu prüfende Pfad (z.B. "results[0].user.email")
+     * @returns {boolean} true wenn der Unterschied gemeldet werden soll
+     */
     function isPropertySelected(path) {
-        if (selectedProperties === null) return true;
-        // Prüfe ob der Pfad selbst oder ein Eltern-Pfad ausgewählt ist
-        const pathParts = path.split('.');
-        for (let i = pathParts.length; i > 0; i--) {
-            const checkPath = pathParts.slice(0, i).join('.');
-            if (selectedProperties.has(checkPath)) return true;
-        }
-        return false;
+        if (selectedProperties === null) return true;  // null = alle vergleichen
+
+        // Prüfe ob der exakte Pfad ausgewählt ist
+        if (selectedProperties.has(path)) return true;
+
+        // Normalisiere: Entferne Array-Indizes und prüfe erneut
+        // z.B. "results[0].user.email" -> "results.user.email"
+        const normalizedPath = path.replace(/\[\d+\]/g, '');
+        return selectedProperties.has(normalizedPath);
     }
 
+    /**
+     * Prüft ob es Kind-Properties gibt, die ausgewählt sind.
+     *
+     * Wird verwendet um zu entscheiden, ob wir in ein Objekt/Array
+     * hineinrekursieren müssen, auch wenn das Objekt selbst nicht ausgewählt ist.
+     *
+     * Beispiel: Wenn "user.email" ausgewählt ist, muss "user" durchlaufen werden.
+     *
+     * @param {string} path - Der Eltern-Pfad
+     * @returns {boolean} true wenn Kind-Pfade ausgewählt sind
+     */
     function hasSelectedChildren(path) {
         if (selectedProperties === null) return true;
-        // Prüfe ob es Kind-Pfade gibt, die ausgewählt sind
-        const prefix = path ? path + '.' : '';
+        if (path === '') {
+            return selectedProperties.size > 0;
+        }
+
+        // Normalisiere: Entferne Array-Indizes
+        const normalizedPath = path.replace(/\[\d+\]/g, '');
+        const prefix = normalizedPath + '.';
+
+        // Suche nach Kind-Pfaden die mit diesem Prefix beginnen
         for (const prop of selectedProperties) {
             if (prop.startsWith(prefix)) return true;
         }
         return false;
     }
 
+    /**
+     * Kombiniert isPropertySelected und hasSelectedChildren.
+     *
+     * Eine Property muss verarbeitet werden wenn:
+     * - Sie selbst ausgewählt ist (Unterschied wird gemeldet), ODER
+     * - Sie Kind-Properties hat die ausgewählt sind (muss durchlaufen werden)
+     *
+     * @param {string} path - Der zu prüfende Pfad
+     * @returns {boolean} true wenn die Property verarbeitet werden soll
+     */
     function shouldProcessProperty(path) {
-        // Property soll verarbeitet werden wenn sie selbst ausgewählt ist ODER Kind-Pfade hat
         return isPropertySelected(path) || hasSelectedChildren(path);
     }
 
+    /**
+     * Wählt alle Kind-Properties einer Eltern-Property aus oder ab.
+     *
+     * Wird aufgerufen wenn der Benutzer eine Checkbox einer Property
+     * mit Kindern ändert - dann werden alle Kinder automatisch mit aktualisiert.
+     *
+     * @param {string} parentPath - Pfad der Eltern-Property
+     * @param {boolean} checked - true = auswählen, false = abwählen
+     */
+    function toggleChildProperties(parentPath, checked) {
+        const prefix = parentPath + '.';
+
+        // State aktualisieren
+        allScannedProperties.forEach(prop => {
+            if (prop.path.startsWith(prefix)) {
+                if (checked) {
+                    selectedProperties.add(prop.path);
+                } else {
+                    selectedProperties.delete(prop.path);
+                }
+            }
+        });
+
+        // Checkboxen im UI synchronisieren
+        propSelectorList.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            if (cb.dataset.path && cb.dataset.path.startsWith(prefix)) {
+                cb.checked = checked;
+            }
+        });
+    }
+
+    /**
+     * Vergleicht zwei Arrays und findet Unterschiede.
+     *
+     * Es gibt zwei Vergleichs-Modi:
+     *
+     * 1. STRUKTURELLER VERGLEICH (positionsbasiert):
+     *    Wenn das Array Objekte enthält UND Kind-Properties ausgewählt sind.
+     *    Vergleicht Element für Element an der gleichen Position.
+     *    Beispiel: results[0] mit results[0], results[1] mit results[1], etc.
+     *    Ermöglicht Auswahl einzelner Felder wie "results.user.email".
+     *
+     * 2. MENGEN-VERGLEICH (vorhandensbasiert):
+     *    Für einfache Arrays (Strings, Zahlen) oder wenn das Array selbst ausgewählt ist.
+     *    Prüft nur ob Elemente vorhanden sind, nicht die Position.
+     *    Beispiel: ["A", "B"] vs ["B", "C"] → A entfernt, C hinzugefügt
+     *
+     * @param {Array} arrA - Array aus JSON A
+     * @param {Array} arrB - Array aus JSON B
+     * @param {string} path - Aktueller Pfad (z.B. "results")
+     * @returns {Array} Liste der gefundenen Unterschiede
+     */
     function compareArrays(arrA, arrB, path) {
         const differences = [];
 
-        // Wenn der Pfad nicht ausgewählt ist, überspringe
+        // Früher Abbruch wenn weder Array noch Kind-Properties ausgewählt
+        if (!shouldProcessProperty(path)) return differences;
+
+        // Prüfe ob Arrays Objekte enthalten (für strukturellen Vergleich)
+        const hasObjectsA = arrA.some(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+        const hasObjectsB = arrB.some(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+
+        // MODUS 1: Struktureller Vergleich für Objekt-Arrays mit Kind-Auswahl
+        if ((hasObjectsA || hasObjectsB) && hasSelectedChildren(path)) {
+            const maxLen = Math.max(arrA.length, arrB.length);
+
+            for (let i = 0; i < maxLen; i++) {
+                const itemA = arrA[i];
+                const itemB = arrB[i];
+                const itemPath = `${path}[${i}]`;
+
+                if (itemA === undefined) {
+                    // Element nur in B vorhanden
+                    if (isPropertySelected(path)) {
+                        differences.push({ type: 'added', path: itemPath, valueB: itemB });
+                    }
+                } else if (itemB === undefined) {
+                    // Element nur in A vorhanden
+                    if (isPropertySelected(path)) {
+                        differences.push({ type: 'removed', path: itemPath, valueA: itemA });
+                    }
+                } else if (typeof itemA === 'object' && typeof itemB === 'object') {
+                    // Beide sind Objekte: rekursiv vergleichen
+                    const nestedDiffs = findDifferences(itemA, itemB, itemPath);
+                    differences.push(...nestedDiffs);
+                } else if (itemA !== itemB && isPropertySelected(itemPath)) {
+                    // Primitive Werte unterschiedlich
+                    differences.push({ type: 'changed', path: itemPath, valueA: itemA, valueB: itemB });
+                }
+            }
+            return differences;
+        }
+
+        // MODUS 2: Mengen-Vergleich (Original-Logik)
+        // Nur wenn das Array selbst ausgewählt ist
         if (!isPropertySelected(path)) return differences;
 
         const serialize = (val) => JSON.stringify(val);
@@ -612,13 +888,35 @@ document.addEventListener('DOMContentLoaded', function() {
         return differences;
     }
 
+    /**
+     * Hauptfunktion: Vergleicht zwei JSON-Objekte rekursiv und findet alle Unterschiede.
+     *
+     * Die Funktion berücksichtigt die Property-Auswahl:
+     * - shouldProcessProperty: Entscheidet ob eine Property überhaupt durchlaufen wird
+     * - isPropertySelected (shouldReport): Entscheidet ob ein Unterschied gemeldet wird
+     *
+     * Diese Trennung ermöglicht es, durch "user" zu traversieren um "user.email"
+     * zu erreichen, auch wenn "user" selbst nicht ausgewählt ist.
+     *
+     * Unterschiedstypen:
+     * - 'added': Property nur in B vorhanden
+     * - 'removed': Property nur in A vorhanden
+     * - 'changed': Property in beiden, aber unterschiedliche Werte
+     *
+     * @param {Object} objA - Objekt aus JSON A
+     * @param {Object} objB - Objekt aus JSON B
+     * @param {string} path - Aktueller Pfad (für Rekursion, z.B. "user.address")
+     * @returns {Array} Liste der gefundenen Unterschiede
+     */
     function findDifferences(objA, objB, path) {
         const differences = [];
 
+        // Arrays werden separat behandelt
         if (Array.isArray(objA) && Array.isArray(objB)) {
             return compareArrays(objA, objB, path);
         }
 
+        // Alle Keys aus beiden Objekten sammeln
         const allKeys = new Set([
             ...Object.keys(objA || {}),
             ...Object.keys(objB || {})
@@ -627,13 +925,17 @@ document.addEventListener('DOMContentLoaded', function() {
         for (const key of allKeys) {
             const currentPath = path ? `${path}.${key}` : key;
 
-            // Prüfe ob diese Property verarbeitet werden soll (selbst ausgewählt oder hat ausgewählte Kinder)
+            // Skip wenn Property weder ausgewählt noch Kind-Properties hat
             if (!shouldProcessProperty(currentPath)) continue;
 
             const valueA = objA ? objA[key] : undefined;
             const valueB = objB ? objB[key] : undefined;
+
+            // shouldReport: Soll dieser Unterschied gemeldet werden?
+            // (true wenn die Property selbst ausgewählt ist)
             const shouldReport = isPropertySelected(currentPath);
 
+            // Fall 1: Property nur in B (hinzugefügt)
             if (!(key in (objA || {}))) {
                 if (shouldReport) {
                     differences.push({
@@ -642,7 +944,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         valueB: valueB
                     });
                 }
-            } else if (!(key in (objB || {}))) {
+            }
+            // Fall 2: Property nur in A (entfernt)
+            else if (!(key in (objB || {}))) {
                 if (shouldReport) {
                     differences.push({
                         type: 'removed',
@@ -650,7 +954,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         valueA: valueA
                     });
                 }
-            } else if (typeof valueA !== typeof valueB) {
+            }
+            // Fall 3: Unterschiedliche Typen
+            else if (typeof valueA !== typeof valueB) {
                 if (shouldReport) {
                     differences.push({
                         type: 'changed',
@@ -659,13 +965,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         valueB: valueB
                     });
                 }
-            } else if (Array.isArray(valueA) && Array.isArray(valueB)) {
+            }
+            // Fall 4: Beide sind Arrays → delegieren an compareArrays
+            else if (Array.isArray(valueA) && Array.isArray(valueB)) {
                 const arrayDiffs = compareArrays(valueA, valueB, currentPath);
                 differences.push(...arrayDiffs);
-            } else if (typeof valueA === 'object' && valueA !== null && valueB !== null) {
+            }
+            // Fall 5: Beide sind Objekte → rekursiv weitermachen
+            else if (typeof valueA === 'object' && valueA !== null && valueB !== null) {
                 const nestedDiffs = findDifferences(valueA, valueB, currentPath);
                 differences.push(...nestedDiffs);
-            } else if (valueA !== valueB) {
+            }
+            // Fall 6: Primitive Werte unterschiedlich
+            else if (valueA !== valueB) {
                 if (shouldReport) {
                     differences.push({
                         type: 'changed',

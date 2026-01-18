@@ -229,11 +229,51 @@ html, body {
     padding: 0.5em 0;
 }
 
+/* Property Tree Structure */
+.prop-tree-node {
+    /* Container für einen Knoten und seine Kinder */
+}
+
+.prop-tree-children {
+    display: none;
+}
+
+.prop-tree-node.expanded > .prop-tree-children {
+    display: block;
+}
+
+.prop-tree-arrow {
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    cursor: default;
+}
+
+.prop-tree-arrow.has-children {
+    cursor: pointer;
+    color: var(--violet-400);
+    transition: color 0.15s ease;
+}
+
+.prop-tree-arrow.has-children:hover {
+    color: var(--violet-300);
+}
+
+.prop-checkbox-spacer {
+    width: 16px;
+    flex-shrink: 0;
+}
+
 .prop-selector-item {
     display: flex;
     align-items: center;
     gap: 0.5em;
-    padding: 0.5em 0.75em;
+    padding: 0.4em 0.75em;
     cursor: pointer;
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.8rem;
@@ -252,7 +292,7 @@ html, body {
     flex-shrink: 0;
 }
 
-.prop-selector-item span {
+.prop-selector-item .prop-name {
     color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
@@ -260,50 +300,23 @@ html, body {
 }
 
 /* Farbkodierung für Property-Herkunft */
-.prop-selector-item.prop-both span {
+.prop-selector-item.prop-both .prop-name {
     color: var(--primary-color);
 }
 
-.prop-selector-item.prop-only-a span {
+.prop-selector-item.prop-only-a .prop-name {
     color: var(--removed-color);
 }
 
-.prop-selector-item.prop-only-b span {
+.prop-selector-item.prop-only-b .prop-name {
     color: var(--added-color);
-}
-
-.prop-selector-item.prop-both::before {
-    content: '';
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--primary-color);
-    flex-shrink: 0;
-}
-
-.prop-selector-item.prop-only-a::before {
-    content: '';
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--removed-color);
-    flex-shrink: 0;
-}
-
-.prop-selector-item.prop-only-b::before {
-    content: '';
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--added-color);
-    flex-shrink: 0;
 }
 
 .content {
     display: flex;
     justify-content: center;
     gap: 1.5em;
-    padding: 1.5em;
+    padding: 2.5em 1.5em 1.5em 1.5em;
     flex-wrap: wrap;
 }
 
