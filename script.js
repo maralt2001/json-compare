@@ -25,17 +25,221 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllProps = document.getElementById('selectAllProps');
     const deselectAllProps = document.getElementById('deselectAllProps');
 
+    // ========================================================================
+    // CONFIGURATION
+    // ========================================================================
+    const CONFIG = {
+        COPY_FEEDBACK_MS: 1500,
+        PRIORITY_KEYS: ['id', 'name', 'vorname', 'key', '_id', 'uuid'],
+        DRAG_EVENTS: ['dragenter', 'dragover', 'dragleave', 'drop']
+    };
+
+    // ========================================================================
+    // STATE VARIABLES
+    // ========================================================================
+
+    // UI State
     let allCollapsed = false;
     let currentFilter = 'all';
+
+    // Filter State
     let propertyFilterValue = '';
-    let lastDifferences = [];
     let selectedProperties = null; // null = alle vergleichen
+
+    // Comparison Data
+    let lastDifferences = [];
     let allScannedProperties = []; // alle gescannten Properties mit Herkunft
+
+    // Array Key Handling
     let manualArrayKeys = new Map();   // path -> { mode: 'auto'|'manual'|'none', key: string|null }
     let arrayKeyOptions = new Map();   // path -> Set<string>
+
+    // Inline Diff Highlighting
     let diffHighlightsA = [];  // Array von { start, end } für Inline-Diff in JSON A
     let diffHighlightsB = [];  // Array von { start, end } für Inline-Diff in JSON B
     let highlightedPaths = new Set();  // Aktuell hervorgehobene Pfade (für Toggle)
+
+    // ========================================================================
+    // HELPER FUNCTIONS
+    // ========================================================================
+
+    /**
+     * Clears all diff highlights from both editors.
+     */
+    function clearDiffHighlights() {
+        diffHighlightsA = [];
+        diffHighlightsB = [];
+        highlightedPaths = new Set();
+        updateHighlight(jsonATextarea, highlightA);
+        updateHighlight(jsonBTextarea, highlightB);
+    }
+
+    /**
+     * Classifies differences by type.
+     * @param {Array} diffs - Array of difference objects
+     * @returns {Object} Object with removed, added, changed arrays
+     */
+    function classifyDifferences(diffs) {
+        return {
+            removed: diffs.filter(d => d.type === 'removed'),
+            added: diffs.filter(d => d.type === 'added'),
+            changed: diffs.filter(d => d.type === 'changed')
+        };
+    }
+
+    /**
+     * Finds keys that exist in all objects of an array.
+     * @param {Array} objects - Array of objects to analyze
+     * @returns {Set} Set of common keys
+     */
+    function findCommonKeysInObjects(objects) {
+        if (objects.length === 0) return new Set();
+        return objects.reduce((common, obj) => {
+            const objKeys = Object.keys(obj);
+            return common === null ? new Set(objKeys) : new Set([...common].filter(k => objKeys.includes(k)));
+        }, null) || new Set();
+    }
+
+    /**
+     * Gets the CSS class for a property based on its source.
+     * @param {Object} prop - Property object with inA and inB flags
+     * @returns {string} CSS class name
+     */
+    function getPropertySourceClass(prop) {
+        if (prop.inA && prop.inB) return 'prop-both';
+        if (prop.inA) return 'prop-only-a';
+        return 'prop-only-b';
+    }
+
+    /**
+     * Resets all filter buttons to default state.
+     */
+    function resetFilterButtons() {
+        filterButtons.forEach(btn => {
+            const filter = btn.dataset.filter;
+            btn.classList.toggle('active', filter === 'all');
+            const label = btn.textContent.split(' (')[0];
+            btn.innerHTML = `${label} <span class="filter-count">(0)</span>`;
+        });
+    }
+
+    /**
+     * Skips whitespace characters starting from a position.
+     * @param {string} text - Text to scan
+     * @param {number} pos - Starting position
+     * @returns {number} Position after whitespace
+     */
+    function skipWhitespace(text, pos) {
+        while (pos < text.length && /\s/.test(text[pos])) pos++;
+        return pos;
+    }
+
+    /**
+     * Shows copy feedback on a button.
+     * @param {HTMLElement} btn - Button element
+     */
+    function showCopyFeedback(btn) {
+        btn.classList.add('copied');
+        setTimeout(() => btn.classList.remove('copied'), CONFIG.COPY_FEEDBACK_MS);
+    }
+
+    /**
+     * Updates filter button counts based on differences.
+     * @param {Array} differences - Array of difference objects
+     */
+    function updateFilterCounts(differences) {
+        const classified = classifyDifferences(differences);
+        const counts = {
+            all: differences.length,
+            added: classified.added.length,
+            removed: classified.removed.length,
+            changed: classified.changed.length
+        };
+
+        filterButtons.forEach(btn => {
+            const filter = btn.dataset.filter;
+            const count = counts[filter];
+            btn.classList.toggle('active', filter === 'all');
+            btn.innerHTML = `${btn.textContent.split(' (')[0]} <span class="filter-count">(${count})</span>`;
+        });
+    }
+
+    /**
+     * Creates a diff line element for displaying a single difference.
+     * @param {Object} diff - Difference object with type, path, valueA, valueB
+     * @param {string} nameA - Display name for JSON A
+     * @param {string} nameB - Display name for JSON B
+     * @returns {HTMLElement} The diff line element
+     */
+    function createDiffLineElement(diff, nameA, nameB) {
+        const line = document.createElement('div');
+        line.className = 'diff-line collapsed';
+
+        let icon, hint;
+        switch (diff.type) {
+            case 'added':
+                line.classList.add('diff-added');
+                icon = '+';
+                hint = `(nur in ${nameB})`;
+                break;
+            case 'removed':
+                line.classList.add('diff-removed');
+                icon = '-';
+                hint = `(nur in ${nameA})`;
+                break;
+            case 'changed':
+                line.classList.add('diff-changed');
+                icon = '~';
+                hint = '';
+                break;
+        }
+
+        // Show-Button nur für "changed" Unterschiede
+        const showBtn = diff.type === 'changed'
+            ? `<button class="diff-show-btn" title="Im Editor anzeigen">
+                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                       <circle cx="12" cy="12" r="3"></circle>
+                   </svg>
+               </button>`
+            : '';
+
+        line.innerHTML = `
+            <div class="diff-header">
+                <span class="diff-toggle"></span>
+                <span class="diff-path">${icon} ${diff.path}</span>
+                ${hint ? `<span class="diff-hint">${hint}</span>` : ''}
+                ${showBtn}
+            </div>
+            <div class="diff-compare">
+                <div class="diff-side side-a">
+                    <span class="diff-label">${nameA}</span>
+                    <span class="diff-value">${diff.type === 'added' ? '<span class="empty">—</span>' : formatValue(diff.valueA)}</span>
+                </div>
+                <div class="diff-side side-b">
+                    <span class="diff-label">${nameB}</span>
+                    <span class="diff-value">${diff.type === 'removed' ? '<span class="empty">—</span>' : formatValue(diff.valueB)}</span>
+                </div>
+            </div>
+        `;
+
+        // Event listeners
+        const header = line.querySelector('.diff-header');
+        header.addEventListener('click', (e) => {
+            if (e.target.closest('.diff-show-btn')) return;
+            line.classList.toggle('collapsed');
+        });
+
+        const showBtnEl = line.querySelector('.diff-show-btn');
+        if (showBtnEl) {
+            showBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                highlightDifferenceInEditors(diff, showBtnEl);
+            });
+        }
+
+        return line;
+    }
 
     fileA.addEventListener('change', (e) => handleFileSelect(e.target.files[0], jsonATextarea));
     fileB.addEventListener('change', (e) => handleFileSelect(e.target.files[0], jsonBTextarea));
@@ -63,12 +267,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentFilter = 'all';
         propertyFilterValue = '';
         propertyFilter.value = '';
-        filterButtons.forEach(btn => {
-            const filter = btn.dataset.filter;
-            btn.classList.toggle('active', filter === 'all');
-            const label = btn.textContent.split(' (')[0];
-            btn.innerHTML = `${label} <span class="filter-count">(0)</span>`;
-        });
+        resetFilterButtons();
     }
 
     /* ========================================================================
@@ -143,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Bei Arrays: Durchlaufe Elemente, aber behalte den Array-Pfad (ohne Index)
         if (Array.isArray(obj)) {
-            obj.forEach((item, index) => {
+            obj.forEach(item => {
                 if (typeof item === 'object' && item !== null) {
                     properties.push(...extractAllProperties(item, path, source));
                 }
@@ -438,13 +637,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Farbkodierung
             if (prop) {
-                if (prop.inA && prop.inB) {
-                    item.classList.add('prop-both');
-                } else if (prop.inA) {
-                    item.classList.add('prop-only-a');
-                } else {
-                    item.classList.add('prop-only-b');
-                }
+                item.classList.add(getPropertySourceClass(prop));
             }
 
             // Pfeil für aufklappbare Elemente
@@ -562,13 +755,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             try {
                 await navigator.clipboard.writeText(textarea.value);
-                btn.classList.add('copied');
-                setTimeout(() => btn.classList.remove('copied'), 1500);
+                showCopyFeedback(btn);
             } catch (err) {
                 textarea.select();
                 document.execCommand('copy');
-                btn.classList.add('copied');
-                setTimeout(() => btn.classList.remove('copied'), 1500);
+                showCopyFeedback(btn);
             }
         });
     });
@@ -601,18 +792,10 @@ document.addEventListener('DOMContentLoaded', function() {
     setupDragAndDrop(jsonBTextarea);
 
     jsonATextarea.addEventListener('input', () => {
-        diffHighlightsA = [];  // Clear diff on edit
-        diffHighlightsB = [];
-        highlightedPaths = new Set();
-        updateHighlight(jsonATextarea, highlightA);
-        updateHighlight(jsonBTextarea, highlightB);
+        clearDiffHighlights();
     });
     jsonBTextarea.addEventListener('input', () => {
-        diffHighlightsA = [];  // Clear diff on edit
-        diffHighlightsB = [];
-        highlightedPaths = new Set();
-        updateHighlight(jsonATextarea, highlightA);
-        updateHighlight(jsonBTextarea, highlightB);
+        clearDiffHighlights();
     });
     jsonATextarea.addEventListener('scroll', () => syncScroll(jsonATextarea, highlightA));
     jsonBTextarea.addEventListener('scroll', () => syncScroll(jsonBTextarea, highlightB));
@@ -711,7 +894,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     pos += keyMatch.index + keyMatch[0].length;
 
                     // Überspringe Whitespace nach dem Doppelpunkt
-                    while (pos < jsonText.length && /\s/.test(jsonText[pos])) pos++;
+                    pos = skipWhitespace(jsonText, pos);
 
                 } else if (part.type === 'index') {
                     // Finde das Array und navigiere zum Index
@@ -778,7 +961,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
 
                     // Überspringe Whitespace
-                    while (pos < jsonText.length && /\s/.test(jsonText[pos])) pos++;
+                    pos = skipWhitespace(jsonText, pos);
                 }
             }
 
@@ -905,25 +1088,23 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupDragAndDrop(textarea) {
         const container = textarea.closest('.container');
 
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+        // Prevent default for all drag events
+        CONFIG.DRAG_EVENTS.forEach(event => {
             container.addEventListener(event, (e) => {
                 e.preventDefault();
                 e.stopPropagation();
             });
         });
 
-        ['dragenter', 'dragover'].forEach(event => {
+        // Add/remove drag-over class based on event type
+        CONFIG.DRAG_EVENTS.forEach(event => {
             container.addEventListener(event, () => {
-                container.classList.add('drag-over');
+                const shouldHighlight = event === 'dragenter' || event === 'dragover';
+                container.classList.toggle('drag-over', shouldHighlight);
             });
         });
 
-        ['dragleave', 'drop'].forEach(event => {
-            container.addEventListener(event, () => {
-                container.classList.remove('drag-over');
-            });
-        });
-
+        // Handle file drop
         container.addEventListener('drop', (e) => {
             const file = e.dataTransfer.files[0];
             if (file) {
@@ -1060,9 +1241,7 @@ document.addEventListener('DOMContentLoaded', function() {
             ''
         ];
 
-        const removed = lastDifferences.filter(d => d.type === 'removed');
-        const added = lastDifferences.filter(d => d.type === 'added');
-        const changed = lastDifferences.filter(d => d.type === 'changed');
+        const { removed, added, changed } = classifyDifferences(lastDifferences);
 
         if (removed.length > 0) {
             lines.push(`NUR IN ${nameA} (${removed.length}):`);
@@ -1251,21 +1430,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (objectsA.length === 0 || objectsB.length === 0) return null;
 
         // Finde Keys die in ALLEN Objekten beider Arrays vorkommen
-        const keysInAllA = objectsA.reduce((common, obj) => {
-            const objKeys = Object.keys(obj);
-            return common === null ? new Set(objKeys) : new Set([...common].filter(k => objKeys.includes(k)));
-        }, null) || new Set();
-
-        const keysInAllB = objectsB.reduce((common, obj) => {
-            const objKeys = Object.keys(obj);
-            return common === null ? new Set(objKeys) : new Set([...common].filter(k => objKeys.includes(k)));
-        }, null) || new Set();
-
+        const keysInAllA = findCommonKeysInObjects(objectsA);
+        const keysInAllB = findCommonKeysInObjects(objectsB);
         const commonKeys = [...keysInAllA].filter(k => keysInAllB.has(k));
 
         // Priorisiere bestimmte Keys
-        const priorityKeys = ['id', 'name', 'vorname', 'key', '_id', 'uuid'];
-        for (const pk of priorityKeys) {
+        for (const pk of CONFIG.PRIORITY_KEYS) {
             if (commonKeys.includes(pk)) {
                 // Stelle sicher dass der Key eindeutige Werte hat (zumindest in einem Array)
                 const valuesA = objectsA.map(obj => obj[pk]);
@@ -1575,19 +1745,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const nameA = aliasA.value.trim() || 'A';
         const nameB = aliasB.value.trim() || 'B';
 
-        const counts = {
-            all: differences.length,
-            added: differences.filter(d => d.type === 'added').length,
-            removed: differences.filter(d => d.type === 'removed').length,
-            changed: differences.filter(d => d.type === 'changed').length
-        };
-
-        filterButtons.forEach(btn => {
-            const filter = btn.dataset.filter;
-            const count = counts[filter];
-            btn.classList.toggle('active', filter === 'all');
-            btn.innerHTML = `${btn.textContent.split(' (')[0]} <span class="filter-count">(${count})</span>`;
-        });
+        updateFilterCounts(differences);
 
         if (differences.length === 0) {
             diffResult.innerHTML = '<div class="no-diff">Keine Unterschiede gefunden - Die JSON-Daten sind identisch.</div>';
@@ -1595,74 +1753,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         differences.forEach(diff => {
-            const line = document.createElement('div');
-            line.className = 'diff-line collapsed';
-
-            let icon, hint;
-            switch (diff.type) {
-                case 'added':
-                    line.classList.add('diff-added');
-                    icon = '+';
-                    hint = `(nur in ${nameB})`;
-                    break;
-                case 'removed':
-                    line.classList.add('diff-removed');
-                    icon = '-';
-                    hint = `(nur in ${nameA})`;
-                    break;
-                case 'changed':
-                    line.classList.add('diff-changed');
-                    icon = '~';
-                    hint = '';
-                    break;
-            }
-
-            // Show-Button nur für "changed" Unterschiede
-            const showBtn = diff.type === 'changed'
-                ? `<button class="diff-show-btn" title="Im Editor anzeigen">
-                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                           <circle cx="12" cy="12" r="3"></circle>
-                       </svg>
-                   </button>`
-                : '';
-
-            line.innerHTML = `
-                <div class="diff-header">
-                    <span class="diff-toggle"></span>
-                    <span class="diff-path">${icon} ${diff.path}</span>
-                    ${hint ? `<span class="diff-hint">${hint}</span>` : ''}
-                    ${showBtn}
-                </div>
-                <div class="diff-compare">
-                    <div class="diff-side side-a">
-                        <span class="diff-label">${nameA}</span>
-                        <span class="diff-value">${diff.type === 'added' ? '<span class="empty">—</span>' : formatValue(diff.valueA)}</span>
-                    </div>
-                    <div class="diff-side side-b">
-                        <span class="diff-label">${nameB}</span>
-                        <span class="diff-value">${diff.type === 'removed' ? '<span class="empty">—</span>' : formatValue(diff.valueB)}</span>
-                    </div>
-                </div>
-            `;
-
-            const header = line.querySelector('.diff-header');
-            header.addEventListener('click', (e) => {
-                // Nicht toggl wenn auf Show-Button geklickt
-                if (e.target.closest('.diff-show-btn')) return;
-                line.classList.toggle('collapsed');
-            });
-
-            // Event-Listener für Show-Button
-            const showBtnEl = line.querySelector('.diff-show-btn');
-            if (showBtnEl) {
-                showBtnEl.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    highlightDifferenceInEditors(diff, showBtnEl);
-                });
-            }
-
-            diffResult.appendChild(line);
+            diffResult.appendChild(createDiffLineElement(diff, nameA, nameB));
         });
     }
 
