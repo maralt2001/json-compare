@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let allScannedProperties = []; // alle gescannten Properties mit Herkunft
     let manualArrayKeys = new Map();   // path -> { mode: 'auto'|'manual'|'none', key: string|null }
     let arrayKeyOptions = new Map();   // path -> Set<string>
+    let diffHighlightsA = [];  // Array von { start, end } für Inline-Diff in JSON A
+    let diffHighlightsB = [];  // Array von { start, end } für Inline-Diff in JSON B
+    let highlightedPaths = new Set();  // Aktuell hervorgehobene Pfade (für Toggle)
 
     fileA.addEventListener('change', (e) => handleFileSelect(e.target.files[0], jsonATextarea));
     fileB.addEventListener('change', (e) => handleFileSelect(e.target.files[0], jsonBTextarea));
@@ -52,6 +55,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function resetDiffState() {
         diffResult.innerHTML = '';
         lastDifferences = [];
+        diffHighlightsA = [];
+        diffHighlightsB = [];
+        highlightedPaths = new Set();
         allCollapsed = true;
         toggleAllBtn.textContent = 'Alle aufklappen';
         currentFilter = 'all';
@@ -594,14 +600,34 @@ document.addEventListener('DOMContentLoaded', function() {
     setupDragAndDrop(jsonATextarea);
     setupDragAndDrop(jsonBTextarea);
 
-    jsonATextarea.addEventListener('input', () => updateHighlight(jsonATextarea, highlightA));
-    jsonBTextarea.addEventListener('input', () => updateHighlight(jsonBTextarea, highlightB));
+    jsonATextarea.addEventListener('input', () => {
+        diffHighlightsA = [];  // Clear diff on edit
+        diffHighlightsB = [];
+        highlightedPaths = new Set();
+        updateHighlight(jsonATextarea, highlightA);
+        updateHighlight(jsonBTextarea, highlightB);
+    });
+    jsonBTextarea.addEventListener('input', () => {
+        diffHighlightsA = [];  // Clear diff on edit
+        diffHighlightsB = [];
+        highlightedPaths = new Set();
+        updateHighlight(jsonATextarea, highlightA);
+        updateHighlight(jsonBTextarea, highlightB);
+    });
     jsonATextarea.addEventListener('scroll', () => syncScroll(jsonATextarea, highlightA));
     jsonBTextarea.addEventListener('scroll', () => syncScroll(jsonBTextarea, highlightB));
 
-    function updateHighlight(textarea, highlight) {
+    function updateHighlight(textarea, highlight, diffRanges = []) {
         const text = textarea.value;
-        highlight.innerHTML = highlightJSON(text);
+        highlight.innerHTML = highlightJSON(text, diffRanges);
+    }
+
+    /**
+     * Aktualisiert beide JSON-Editoren mit Diff-Highlighting.
+     */
+    function updateHighlightsWithDiff() {
+        updateHighlight(jsonATextarea, highlightA, diffHighlightsA);
+        updateHighlight(jsonBTextarea, highlightB, diffHighlightsB);
     }
 
     function syncScroll(textarea, highlight) {
@@ -609,10 +635,23 @@ document.addEventListener('DOMContentLoaded', function() {
         highlight.scrollLeft = textarea.scrollLeft;
     }
 
-    function highlightJSON(text) {
+    function highlightJSON(text, diffRanges = []) {
         if (!text) return '';
 
-        return text
+        // Sortiere Ranges nach Start-Position (absteigend für rückwärts-Einfügung)
+        const sortedRanges = [...diffRanges].sort((a, b) => b.start - a.start);
+
+        // Füge Diff-Marker ein (von hinten nach vorne um Positionen nicht zu verschieben)
+        let markedText = text;
+        sortedRanges.forEach(range => {
+            const before = markedText.slice(0, range.start);
+            const diffPart = markedText.slice(range.start, range.end);
+            const after = markedText.slice(range.end);
+            markedText = before + '\x00DIFF_START\x00' + diffPart + '\x00DIFF_END\x00' + after;
+        });
+
+        // Standard-Highlighting
+        let result = markedText
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
@@ -621,6 +660,246 @@ document.addEventListener('DOMContentLoaded', function() {
             .replace(/:\s*(-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
             .replace(/:\s*(true|false)/g, ': <span class="json-boolean">$1</span>')
             .replace(/:\s*(null)/g, ': <span class="json-null">$1</span>');
+
+        // Ersetze Diff-Marker durch HTML
+        result = result
+            .replace(/\x00DIFF_START\x00/g, '<span class="json-diff-changed">')
+            .replace(/\x00DIFF_END\x00/g, '</span>');
+
+        return result;
+    }
+
+    /**
+     * Findet die Position eines Wertes im formatierten JSON-Text anhand des Pfads.
+     * Gibt { start, end } zurück oder null wenn nicht gefunden.
+     *
+     * @param {string} jsonText - Der formatierte JSON-String
+     * @param {string} path - Der Pfad zum Wert (z.B. "user.name" oder "friends[0].age")
+     * @returns {Object|null} { start, end } oder null
+     */
+    function findValuePositionInJSON(jsonText, path) {
+        try {
+            // Pfad in Teile zerlegen
+            const parts = [];
+            const pathRegex = /([^.\[\]]+)|\[(\d+)\]|\[([^\]]+=[^\]]+)\]/g;
+            let match;
+            while ((match = pathRegex.exec(path)) !== null) {
+                if (match[1]) {
+                    parts.push({ type: 'key', value: match[1] });
+                } else if (match[2]) {
+                    parts.push({ type: 'index', value: parseInt(match[2]) });
+                } else if (match[3]) {
+                    // Key-basierter Array-Zugriff (z.B. [vorname=stefan])
+                    const [key, val] = match[3].split('=');
+                    parts.push({ type: 'keyMatch', key, value: val });
+                }
+            }
+
+            if (parts.length === 0) return null;
+
+            let pos = 0;
+
+            // Navigiere durch den JSON-Text
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+
+                if (part.type === 'key') {
+                    // Suche nach "key":
+                    const keyPattern = new RegExp(`"${part.value}"\\s*:`);
+                    const keyMatch = keyPattern.exec(jsonText.slice(pos));
+                    if (!keyMatch) return null;
+                    pos += keyMatch.index + keyMatch[0].length;
+
+                    // Überspringe Whitespace nach dem Doppelpunkt
+                    while (pos < jsonText.length && /\s/.test(jsonText[pos])) pos++;
+
+                } else if (part.type === 'index') {
+                    // Finde das Array und navigiere zum Index
+                    const arrayStart = jsonText.indexOf('[', pos);
+                    if (arrayStart === -1) return null;
+                    pos = arrayStart + 1;
+
+                    // Zähle Array-Elemente bis zum gewünschten Index
+                    let elementCount = 0;
+                    let depth = 0;
+
+                    while (pos < jsonText.length && elementCount <= part.value) {
+                        const char = jsonText[pos];
+                        if (char === '[' || char === '{') depth++;
+                        else if (char === ']' || char === '}') depth--;
+                        else if (char === ',' && depth === 0) {
+                            elementCount++;
+                        }
+
+                        if (elementCount === part.value && depth === 0 && !/[\s,\[]/.test(char)) {
+                            break;
+                        }
+                        pos++;
+                    }
+
+                    // Überspringe Whitespace
+                    while (pos < jsonText.length && /[\s,]/.test(jsonText[pos])) pos++;
+
+                } else if (part.type === 'keyMatch') {
+                    // Finde das Array und suche Element mit passendem Key-Value
+                    const arrayStart = jsonText.indexOf('[', pos);
+                    if (arrayStart === -1) return null;
+                    pos = arrayStart + 1;
+
+                    // Suche nach dem Objekt mit dem passenden Key
+                    const searchPattern = new RegExp(`"${part.key}"\\s*:\\s*"${part.value}"`);
+                    let depth = 0;
+                    let objStart = -1;
+
+                    while (pos < jsonText.length) {
+                        const char = jsonText[pos];
+                        if (char === '{' && depth === 0) {
+                            objStart = pos;
+                        }
+                        if (char === '[' || char === '{') depth++;
+                        else if (char === ']' || char === '}') {
+                            depth--;
+                            if (depth < 0) break; // Ende des Arrays
+                        }
+
+                        // Prüfe ob wir in einem Objekt sind und der Key passt
+                        if (objStart !== -1 && depth === 1) {
+                            const remaining = jsonText.slice(objStart);
+                            if (searchPattern.test(remaining.slice(0, remaining.indexOf('}') + 1))) {
+                                pos = objStart;
+                                break;
+                            }
+                        }
+
+                        if (char === '}' && depth === 0) {
+                            objStart = -1;
+                        }
+                        pos++;
+                    }
+
+                    // Überspringe Whitespace
+                    while (pos < jsonText.length && /\s/.test(jsonText[pos])) pos++;
+                }
+            }
+
+            // Jetzt sind wir am Start des Wertes - finde das Ende
+            const startPos = pos;
+            const startChar = jsonText[pos];
+
+            if (startChar === '"') {
+                // String: Finde das schließende Anführungszeichen
+                pos++;
+                while (pos < jsonText.length) {
+                    if (jsonText[pos] === '"' && jsonText[pos - 1] !== '\\') {
+                        pos++;
+                        break;
+                    }
+                    pos++;
+                }
+            } else if (startChar === '{' || startChar === '[') {
+                // Objekt oder Array: Finde die schließende Klammer
+                let depth = 1;
+                pos++;
+                while (pos < jsonText.length && depth > 0) {
+                    if (jsonText[pos] === '{' || jsonText[pos] === '[') depth++;
+                    else if (jsonText[pos] === '}' || jsonText[pos] === ']') depth--;
+                    pos++;
+                }
+            } else {
+                // Primitiver Wert (Zahl, boolean, null)
+                while (pos < jsonText.length && /[^\s,\}\]]/.test(jsonText[pos])) {
+                    pos++;
+                }
+            }
+
+            return { start: startPos, end: pos };
+
+        } catch (e) {
+            console.warn('Error finding value position:', e);
+            return null;
+        }
+    }
+
+    /**
+     * Hebt einen einzelnen Unterschied in beiden JSON-Editoren hervor.
+     *
+     * @param {Object} diff - Das Difference-Objekt mit path, type, valueA, valueB
+     */
+    function highlightDifferenceInEditors(diff, buttonEl) {
+        // Toggle: Pfad hinzufügen oder entfernen
+        if (highlightedPaths.has(diff.path)) {
+            // Ausschalten
+            highlightedPaths.delete(diff.path);
+            if (buttonEl) buttonEl.classList.remove('active');
+        } else {
+            // Einschalten
+            highlightedPaths.add(diff.path);
+            if (buttonEl) buttonEl.classList.add('active');
+        }
+
+        // Alle Highlights neu berechnen basierend auf aktiven Pfaden
+        recalculateAllHighlights();
+
+        // Zu der neu hinzugefügten Stelle scrollen (nur wenn eingeschaltet)
+        if (highlightedPaths.has(diff.path)) {
+            const jsonAText = jsonATextarea.value;
+            const jsonBText = jsonBTextarea.value;
+            const posA = findValuePositionInJSON(jsonAText, diff.path);
+            const posB = findValuePositionInJSON(jsonBText, diff.path);
+
+            if (posA) {
+                scrollToPosition(jsonATextarea, highlightA, posA.start);
+            }
+            if (posB) {
+                scrollToPosition(jsonBTextarea, highlightB, posB.start);
+            }
+        }
+    }
+
+    /**
+     * Berechnet alle Highlights neu basierend auf den aktiven Pfaden.
+     */
+    function recalculateAllHighlights() {
+        diffHighlightsA = [];
+        diffHighlightsB = [];
+
+        const jsonAText = jsonATextarea.value;
+        const jsonBText = jsonBTextarea.value;
+
+        for (const path of highlightedPaths) {
+            const posA = findValuePositionInJSON(jsonAText, path);
+            const posB = findValuePositionInJSON(jsonBText, path);
+
+            if (posA) diffHighlightsA.push(posA);
+            if (posB) diffHighlightsB.push(posB);
+        }
+
+        updateHighlightsWithDiff();
+    }
+
+    /**
+     * Scrollt den Editor zur angegebenen Position.
+     *
+     * @param {HTMLTextAreaElement} textarea - Das Textarea-Element
+     * @param {HTMLElement} highlight - Das Highlight-Overlay
+     * @param {number} charPos - Die Zeichenposition
+     */
+    function scrollToPosition(textarea, highlight, charPos) {
+        const text = textarea.value;
+
+        // Zeile berechnen in der sich die Position befindet
+        const textBefore = text.slice(0, charPos);
+        const lineNumber = (textBefore.match(/\n/g) || []).length;
+
+        // Ungefähre Zeilenhöhe (basierend auf line-height und font-size)
+        const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 22;
+        const paddingTop = parseFloat(getComputedStyle(textarea).paddingTop) || 16;
+
+        // Scroll-Position berechnen (zentriert wenn möglich)
+        const targetScroll = Math.max(0, (lineNumber * lineHeight) - (textarea.clientHeight / 2) + paddingTop);
+
+        textarea.scrollTop = targetScroll;
+        highlight.scrollTop = targetScroll;
     }
 
     function setupDragAndDrop(textarea) {
@@ -854,6 +1133,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const differences = findDifferences(jsonA, jsonB, '');
         lastDifferences = differences;
         displayDifferences(differences);
+
+        // Diff-Highlights zurücksetzen (werden erst bei Klick auf "Show" angezeigt)
+        diffHighlightsA = [];
+        diffHighlightsB = [];
+        updateHighlight(jsonATextarea, highlightA);
+        updateHighlight(jsonBTextarea, highlightB);
     }
 
     /**
@@ -1332,11 +1617,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
             }
 
+            // Show-Button nur für "changed" Unterschiede
+            const showBtn = diff.type === 'changed'
+                ? `<button class="diff-show-btn" title="Im Editor anzeigen">
+                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                           <circle cx="12" cy="12" r="3"></circle>
+                       </svg>
+                   </button>`
+                : '';
+
             line.innerHTML = `
                 <div class="diff-header">
                     <span class="diff-toggle"></span>
                     <span class="diff-path">${icon} ${diff.path}</span>
                     ${hint ? `<span class="diff-hint">${hint}</span>` : ''}
+                    ${showBtn}
                 </div>
                 <div class="diff-compare">
                     <div class="diff-side side-a">
@@ -1351,9 +1647,20 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
 
             const header = line.querySelector('.diff-header');
-            header.addEventListener('click', () => {
+            header.addEventListener('click', (e) => {
+                // Nicht toggl wenn auf Show-Button geklickt
+                if (e.target.closest('.diff-show-btn')) return;
                 line.classList.toggle('collapsed');
             });
+
+            // Event-Listener für Show-Button
+            const showBtnEl = line.querySelector('.diff-show-btn');
+            if (showBtnEl) {
+                showBtnEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    highlightDifferenceInEditors(diff, showBtnEl);
+                });
+            }
 
             diffResult.appendChild(line);
         });

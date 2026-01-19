@@ -669,6 +669,15 @@ html, body {
     color: #a78bfa;
 }
 
+/* Inline Diff Highlighting */
+.json-diff-changed {
+    background: rgba(34, 211, 238, 0.25);
+    border-radius: 3px;
+    padding: 0 2px;
+    margin: 0 -2px;
+    box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.4);
+}
+
 .result-section {
     padding: 1.5em;
     margin: 0 auto;
@@ -910,6 +919,45 @@ html, body {
     color: var(--text-secondary);
     font-style: italic;
     margin-left: auto;
+}
+
+.diff-show-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    margin-left: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--gray-700);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.diff-show-btn:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--gray-900);
+    transform: scale(1.05);
+}
+
+.diff-show-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--gray-900);
+}
+
+.diff-show-btn:active {
+    transform: scale(0.95);
+}
+
+.diff-show-btn svg {
+    width: 14px;
+    height: 14px;
 }
 
 .diff-compare {
