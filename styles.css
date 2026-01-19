@@ -312,6 +312,41 @@ html, body {
     color: var(--added-color);
 }
 
+/* Array Key Selector */
+.array-key-selector {
+    margin-left: auto;
+    padding-left: 0.5em;
+}
+
+.array-key-select {
+    padding: 0.2em 0.5em;
+    font-size: 0.7rem;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    border: 1px solid var(--gray-600);
+    border-radius: 4px;
+    background: var(--gray-700);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    max-width: 100px;
+}
+
+.array-key-select:hover {
+    border-color: var(--violet-500);
+    color: var(--text-primary);
+}
+
+.array-key-select:focus {
+    outline: none;
+    border-color: var(--violet-400);
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2);
+}
+
+.array-key-select option {
+    background: var(--gray-800);
+    color: var(--text-primary);
+}
+
 .content {
     display: flex;
     justify-content: center;

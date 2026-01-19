@@ -31,6 +31,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let lastDifferences = [];
     let selectedProperties = null; // null = alle vergleichen
     let allScannedProperties = []; // alle gescannten Properties mit Herkunft
+    let manualArrayKeys = new Map();   // path -> { mode: 'auto'|'manual'|'none', key: string|null }
+    let arrayKeyOptions = new Map();   // path -> Set<string>
 
     fileA.addEventListener('change', (e) => handleFileSelect(e.target.files[0], jsonATextarea));
     fileB.addEventListener('change', (e) => handleFileSelect(e.target.files[0], jsonBTextarea));
@@ -104,6 +106,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function resetPropertySelector() {
         selectedProperties = null;
         allScannedProperties = [];
+        manualArrayKeys = new Map();
+        arrayKeyOptions = new Map();
         propSelectorBtn.disabled = true;
         propSelectorBtn.querySelector('.prop-selector-text').textContent = 'Properties auswählen';
         propSelectorList.innerHTML = '';
@@ -163,6 +167,146 @@ document.addEventListener('DOMContentLoaded', function() {
         return properties;
     }
 
+    /**
+     * Ermittelt geeignete Keys für ein Array von Objekten.
+     * Ein Key ist geeignet wenn er in allen Objekten vorkommt und primitive Werte hat.
+     *
+     * @param {Array} arr - Das Array von Objekten
+     * @returns {Set<string>} Menge der verfügbaren Keys
+     */
+    function findAvailableArrayKeys(arr) {
+        const availableKeys = new Set();
+
+        // Nur Objekte betrachten
+        const objects = arr.filter(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+        if (objects.length === 0) return availableKeys;
+
+        // Finde Keys die in ALLEN Objekten vorkommen
+        const keysInAll = objects.reduce((common, obj) => {
+            const objKeys = Object.keys(obj);
+            return common === null ? new Set(objKeys) : new Set([...common].filter(k => objKeys.includes(k)));
+        }, null) || new Set();
+
+        // Filtere auf Keys mit primitiven Werten
+        for (const key of keysInAll) {
+            const allPrimitive = objects.every(obj => {
+                const value = obj[key];
+                return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+            });
+            if (allPrimitive) {
+                availableKeys.add(key);
+            }
+        }
+
+        return availableKeys;
+    }
+
+    /**
+     * Durchsucht ein JSON-Objekt rekursiv nach Arrays und sammelt verfügbare Keys.
+     *
+     * @param {Object} obj - Das zu durchsuchende Objekt
+     * @param {string} path - Aktueller Pfad
+     * @param {Map} keyOptionsMap - Map zum Speichern der Keys (path -> Set<string>)
+     */
+    function collectArrayKeyOptions(obj, path, keyOptionsMap) {
+        if (obj === null || typeof obj !== 'object') return;
+
+        if (Array.isArray(obj)) {
+            // Prüfe ob Array Objekte enthält
+            const hasObjects = obj.some(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+            if (hasObjects) {
+                const availableKeys = findAvailableArrayKeys(obj);
+                if (availableKeys.size > 0) {
+                    // Merge mit existierenden Keys (falls bereits von anderem JSON gescannt)
+                    const existing = keyOptionsMap.get(path) || new Set();
+                    availableKeys.forEach(k => existing.add(k));
+                    keyOptionsMap.set(path, existing);
+                }
+            }
+            // Rekursiv in Array-Elemente
+            obj.forEach(item => {
+                if (typeof item === 'object' && item !== null) {
+                    collectArrayKeyOptions(item, path, keyOptionsMap);
+                }
+            });
+        } else {
+            // Objekt: Jeden Key durchgehen
+            for (const key of Object.keys(obj)) {
+                const currentPath = path ? `${path}.${key}` : key;
+                const value = obj[key];
+                if (typeof value === 'object' && value !== null) {
+                    collectArrayKeyOptions(value, currentPath, keyOptionsMap);
+                }
+            }
+        }
+    }
+
+    /**
+     * Erstellt das Dropdown-Element für die manuelle Key-Auswahl bei Arrays.
+     *
+     * @param {string} path - Der Pfad des Arrays
+     * @param {Set<string>} availableKeys - Verfügbare Keys für die Auswahl
+     * @returns {HTMLElement} Das Dropdown-Container-Element
+     */
+    function createArrayKeySelector(path, availableKeys) {
+        const container = document.createElement('span');
+        container.className = 'array-key-selector';
+
+        const select = document.createElement('select');
+        select.className = 'array-key-select';
+        select.title = 'Vergleichs-Key für dieses Array wählen';
+
+        // Option: Auto (default)
+        const autoOption = document.createElement('option');
+        autoOption.value = 'auto';
+        autoOption.textContent = 'Auto';
+        select.appendChild(autoOption);
+
+        // Option: Index-basiert (kein Key)
+        const indexOption = document.createElement('option');
+        indexOption.value = 'none';
+        indexOption.textContent = '-- Index';
+        select.appendChild(indexOption);
+
+        // Verfügbare Keys als Optionen
+        const sortedKeys = [...availableKeys].sort();
+        sortedKeys.forEach(key => {
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = key;
+            select.appendChild(option);
+        });
+
+        // Aktuellen Wert setzen falls vorhanden
+        const currentSetting = manualArrayKeys.get(path);
+        if (currentSetting) {
+            if (currentSetting.mode === 'none') {
+                select.value = 'none';
+            } else if (currentSetting.mode === 'manual' && currentSetting.key) {
+                select.value = currentSetting.key;
+            }
+        }
+
+        // Event-Listener für Änderungen
+        select.addEventListener('change', (e) => {
+            e.stopPropagation();
+            const value = e.target.value;
+            if (value === 'auto') {
+                manualArrayKeys.delete(path);
+            } else if (value === 'none') {
+                manualArrayKeys.set(path, { mode: 'none', key: null });
+            } else {
+                manualArrayKeys.set(path, { mode: 'manual', key: value });
+            }
+        });
+
+        // Verhindere dass Klick auf Select das Item-Toggle auslöst
+        select.addEventListener('click', (e) => e.stopPropagation());
+
+        container.appendChild(select);
+        return container;
+    }
+
     function scanProperties() {
         const jsonAText = jsonATextarea.value.trim();
         const jsonBText = jsonBTextarea.value.trim();
@@ -194,6 +338,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const propsA = jsonA ? extractAllProperties(jsonA, '', 'A') : [];
         const propsB = jsonB ? extractAllProperties(jsonB, '', 'B') : [];
+
+        // Array-Key-Optionen sammeln
+        arrayKeyOptions = new Map();
+        if (jsonA) collectArrayKeyOptions(jsonA, '', arrayKeyOptions);
+        if (jsonB) collectArrayKeyOptions(jsonB, '', arrayKeyOptions);
+        manualArrayKeys = new Map();  // Reset manual selections
 
         // Kombiniere und dedupliziere Properties
         const propMap = new Map();
@@ -337,6 +487,13 @@ document.addEventListener('DOMContentLoaded', function() {
             text.className = 'prop-name';
             text.textContent = key;
             item.appendChild(text);
+
+            // Array-Key-Selector (nur wenn Keys verfügbar sind)
+            const availableKeys = arrayKeyOptions.get(currentPath);
+            if (availableKeys && availableKeys.size > 0) {
+                const keySelector = createArrayKeySelector(currentPath, availableKeys);
+                item.appendChild(keySelector);
+            }
 
             nodeContainer.appendChild(item);
 
@@ -888,8 +1045,22 @@ document.addEventListener('DOMContentLoaded', function() {
         // MODUS 1 & 2: Vergleich für Objekt-Arrays mit Kind-Auswahl
         if ((hasObjectsA || hasObjectsB) && hasSelectedChildren(path)) {
 
-            // Versuche key-basierten Vergleich
-            const commonKey = findCommonKey(arrA, arrB);
+            // Prüfe manuelle Key-Auswahl
+            const manualSetting = manualArrayKeys.get(path);
+            let commonKey = null;
+
+            if (manualSetting) {
+                if (manualSetting.mode === 'none') {
+                    // Erzwinge Index-basierten Vergleich - skip to MODUS 2
+                    commonKey = null;
+                } else if (manualSetting.mode === 'manual') {
+                    // Manuell gewählter Key
+                    commonKey = manualSetting.key;
+                }
+            } else {
+                // Auto-Modus: findCommonKey() verwenden
+                commonKey = findCommonKey(arrA, arrB);
+            }
 
             if (commonKey) {
                 // MODUS 1: KEY-BASIERTER VERGLEICH
