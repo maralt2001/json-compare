@@ -486,7 +486,8 @@ html, body {
 }
 
 .copy-btn,
-.clear-single-btn {
+.clear-single-btn,
+.format-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -517,6 +518,12 @@ html, body {
     background: var(--removed-color);
     border-color: var(--removed-color);
     color: white;
+}
+
+.format-btn:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--gray-900);
 }
 
 .expand-btn {

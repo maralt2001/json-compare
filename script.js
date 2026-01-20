@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const jsonBTextarea = document.getElementById('jsonB');
     const diffResult = document.getElementById('diffResult');
     const compareBtn = document.getElementById('compareBtn');
-    const formatBtn = document.getElementById('formatBtn');
+    const formatBtns = document.querySelectorAll('.format-btn');
     const toggleAllBtn = document.getElementById('toggleAllBtn');
     const filterButtons = document.querySelectorAll('.filter-btn');
     const fileA = document.getElementById('fileA');
@@ -1227,7 +1227,9 @@ document.addEventListener('DOMContentLoaded', function() {
     updateHighlight(jsonBTextarea, highlightB);
 
     compareBtn.addEventListener('click', compareJSON);
-    formatBtn.addEventListener('click', formatJSON);
+    formatBtns.forEach(btn => {
+        btn.addEventListener('click', () => formatSingleJSON(btn.dataset.target));
+    });
     toggleAllBtn.addEventListener('click', toggleAll);
     exportBtn.addEventListener('click', exportResults);
     exampleBtn.addEventListener('click', loadExample);
@@ -1870,27 +1872,19 @@ document.addEventListener('DOMContentLoaded', function() {
         diffResult.innerHTML = `<div class="error-message">${escapeHtml(message)}</div>`;
     }
 
-    function formatJSON() {
-        try {
-            if (jsonATextarea.value.trim()) {
-                const jsonA = JSON.parse(jsonATextarea.value);
-                jsonATextarea.value = JSON.stringify(jsonA, null, 2);
-                updateHighlight(jsonATextarea, highlightA);
-            }
-        } catch (e) {
-            showError('JSON A ist ungültig: ' + e.message);
-            return;
-        }
+    function formatSingleJSON(targetId) {
+        const textarea = document.getElementById(targetId);
+        const highlight = targetId === 'jsonA' ? highlightA : highlightB;
+        const label = targetId === 'jsonA' ? 'A' : 'B';
 
         try {
-            if (jsonBTextarea.value.trim()) {
-                const jsonB = JSON.parse(jsonBTextarea.value);
-                jsonBTextarea.value = JSON.stringify(jsonB, null, 2);
-                updateHighlight(jsonBTextarea, highlightB);
+            if (textarea.value.trim()) {
+                const json = JSON.parse(textarea.value);
+                textarea.value = JSON.stringify(json, null, 2);
+                updateHighlight(textarea, highlight);
             }
         } catch (e) {
-            showError('JSON B ist ungültig: ' + e.message);
-            return;
+            showError(`JSON ${label} ist ungültig: ` + e.message);
         }
     }
 });
