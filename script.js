@@ -165,6 +165,68 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
+     * Collects all unique property paths from a JSON object.
+     * Used for calculating the total number of properties in both JSONs.
+     *
+     * @param {Object} obj - The JSON object to scan
+     * @param {string} prefix - Current path prefix (for recursion)
+     * @param {Set} paths - Set to collect paths into
+     */
+    function collectPaths(obj, prefix, paths) {
+        if (obj === null || typeof obj !== 'object') return;
+
+        if (Array.isArray(obj)) {
+            obj.forEach((item) => {
+                if (typeof item === 'object' && item !== null) {
+                    collectPaths(item, prefix, paths);
+                } else {
+                    paths.add(prefix || 'root');
+                }
+            });
+            return;
+        }
+
+        for (const key of Object.keys(obj)) {
+            const path = prefix ? `${prefix}.${key}` : key;
+            paths.add(path);
+            collectPaths(obj[key], path, paths);
+        }
+    }
+
+    /**
+     * Counts the total number of unique property paths in both JSON objects.
+     * Uses the union of all paths from both objects.
+     *
+     * @param {Object} objA - First JSON object
+     * @param {Object} objB - Second JSON object
+     * @returns {number} Total number of unique properties
+     */
+    function countTotalProperties(objA, objB) {
+        const pathsA = new Set();
+        const pathsB = new Set();
+
+        collectPaths(objA, '', pathsA);
+        collectPaths(objB, '', pathsB);
+
+        // Union of all paths
+        return new Set([...pathsA, ...pathsB]).size;
+    }
+
+    /**
+     * Calculates the percentage deviation between two JSONs.
+     *
+     * @param {Array} differences - Array of difference objects
+     * @param {number} totalProperties - Total number of unique properties
+     * @returns {number} Deviation percentage (0-100), rounded to 1 decimal place
+     */
+    function calculateDeviation(differences, totalProperties) {
+        if (totalProperties === 0) return 0;
+
+        const deviation = (differences.length / totalProperties) * 100;
+        return Math.round(deviation * 10) / 10;  // 1 decimal place
+    }
+
+    /**
      * Creates a diff line element for displaying a single difference.
      * @param {Object} diff - Difference object with type, path, valueA, valueB
      * @param {string} nameA - Display name for JSON A
@@ -1311,7 +1373,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const differences = findDifferences(jsonA, jsonB, '');
         lastDifferences = differences;
-        displayDifferences(differences);
+
+        // Berechne Abweichung
+        const totalProperties = countTotalProperties(jsonA, jsonB);
+        const deviation = calculateDeviation(differences, totalProperties);
+
+        displayDifferences(differences, totalProperties, deviation);
 
         // Diff-Highlights zurücksetzen (werden erst bei Klick auf "Show" angezeigt)
         diffHighlightsA = [];
@@ -1736,7 +1803,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return differences;
     }
 
-    function displayDifferences(differences) {
+    function displayDifferences(differences, totalProperties = 0, deviation = 0) {
         diffResult.innerHTML = '';
         allCollapsed = true;
         toggleAllBtn.textContent = 'Alle aufklappen';
@@ -1747,10 +1814,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
         updateFilterCounts(differences);
 
+        // Statistik-Header mit Abweichung anzeigen
+        const statsHeader = document.createElement('div');
+        statsHeader.className = 'diff-stats-header';
+
         if (differences.length === 0) {
-            diffResult.innerHTML = '<div class="no-diff">Keine Unterschiede gefunden - Die JSON-Daten sind identisch.</div>';
+            statsHeader.innerHTML = `
+                <div class="diff-stats">
+                    <span class="stats-match">✓ 100% Übereinstimmung</span>
+                    <span class="stats-detail">(${totalProperties} Properties verglichen)</span>
+                </div>
+            `;
+            diffResult.appendChild(statsHeader);
+            diffResult.innerHTML += '<div class="no-diff">Keine Unterschiede gefunden - Die JSON-Daten sind identisch.</div>';
             return;
         }
+
+        // Abweichungsanzeige mit Farbkodierung
+        const matchPercent = Math.round((100 - deviation) * 10) / 10;
+        let deviationClass = 'stats-low';
+        if (deviation > 50) deviationClass = 'stats-high';
+        else if (deviation > 20) deviationClass = 'stats-medium';
+
+        statsHeader.innerHTML = `
+            <div class="diff-stats">
+                <span class="stats-deviation ${deviationClass}">${deviation}% Abweichung</span>
+                <span class="stats-match">(${matchPercent}% Übereinstimmung)</span>
+                <span class="stats-detail">${differences.length} von ${totalProperties} Properties unterschiedlich</span>
+            </div>
+        `;
+        diffResult.appendChild(statsHeader);
 
         differences.forEach(diff => {
             diffResult.appendChild(createDiffLineElement(diff, nameA, nameB));
