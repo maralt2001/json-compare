@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const propSelectorList = document.getElementById('propSelectorList');
     const selectAllProps = document.getElementById('selectAllProps');
     const deselectAllProps = document.getElementById('deselectAllProps');
+    const normalizeBtn = document.getElementById('normalizeBtn');
+    const normalizeDropdown = document.getElementById('normalizeDropdown');
+    const normalizeOptions = document.querySelectorAll('.normalize-option');
 
     // ========================================================================
     // CONFIGURATION
@@ -224,6 +227,78 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const deviation = (differences.length / totalProperties) * 100;
         return Math.round(deviation * 10) / 10;  // 1 decimal place
+    }
+
+    /**
+     * Sortiert ein Objekt alphabetisch nach Keys (rekursiv).
+     *
+     * @param {*} obj - Das zu sortierende Objekt/Array/Wert
+     * @returns {*} Das sortierte Objekt
+     */
+    function normalizeAlphabetically(obj) {
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
+        }
+
+        if (Array.isArray(obj)) {
+            return obj.map(item => normalizeAlphabetically(item));
+        }
+
+        const sortedKeys = Object.keys(obj).sort((a, b) => a.localeCompare(b));
+        const result = {};
+        for (const key of sortedKeys) {
+            result[key] = normalizeAlphabetically(obj[key]);
+        }
+        return result;
+    }
+
+    /**
+     * Sortiert ein Objekt nach der Key-Reihenfolge eines Master-Objekts (rekursiv).
+     * Keys die nur im Ziel existieren, werden am Ende alphabetisch angehängt.
+     *
+     * @param {*} obj - Das zu sortierende Objekt
+     * @param {*} master - Das Master-Objekt für die Reihenfolge
+     * @returns {*} Das sortierte Objekt
+     */
+    function normalizeByMaster(obj, master) {
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
+        }
+
+        if (Array.isArray(obj)) {
+            // Bei Arrays: Jedes Element nach dem entsprechenden Master-Element sortieren
+            return obj.map((item, index) => {
+                const masterItem = Array.isArray(master) && master[index] !== undefined
+                    ? master[index]
+                    : (Array.isArray(master) && master[0] !== undefined ? master[0] : null);
+                return normalizeByMaster(item, masterItem);
+            });
+        }
+
+        if (master === null || typeof master !== 'object' || Array.isArray(master)) {
+            // Kein passendes Master-Objekt - alphabetisch sortieren
+            return normalizeAlphabetically(obj);
+        }
+
+        const result = {};
+        const objKeys = new Set(Object.keys(obj));
+        const masterKeys = Object.keys(master);
+
+        // Zuerst Keys in Master-Reihenfolge
+        for (const key of masterKeys) {
+            if (objKeys.has(key)) {
+                result[key] = normalizeByMaster(obj[key], master[key]);
+                objKeys.delete(key);
+            }
+        }
+
+        // Dann verbleibende Keys alphabetisch
+        const remainingKeys = [...objKeys].sort((a, b) => a.localeCompare(b));
+        for (const key of remainingKeys) {
+            result[key] = normalizeAlphabetically(obj[key]);
+        }
+
+        return result;
     }
 
     /**
@@ -803,12 +878,100 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePropertySelectorButtonText();
     });
 
-    // Klick außerhalb schließt Dropdown
+    // Klick außerhalb schließt Dropdowns
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.property-selector')) {
             propSelectorDropdown.classList.remove('open');
         }
+        if (!e.target.closest('.normalize-selector')) {
+            normalizeDropdown.classList.remove('open');
+        }
     });
+
+    // Normalize Dropdown Toggle
+    normalizeBtn.addEventListener('click', () => {
+        normalizeDropdown.classList.toggle('open');
+    });
+
+    // Normalize Options
+    normalizeOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            const mode = option.dataset.mode;
+            normalizeDropdown.classList.remove('open');
+            applyNormalization(mode);
+        });
+    });
+
+    /**
+     * Wendet die Normalisierung basierend auf dem gewählten Modus an.
+     *
+     * @param {string} mode - 'a-master', 'b-master', oder 'alphabetical'
+     */
+    function applyNormalization(mode) {
+        const jsonAText = jsonATextarea.value.trim();
+        const jsonBText = jsonBTextarea.value.trim();
+
+        if (!jsonAText && !jsonBText) {
+            showError('Bitte mindestens ein JSON-Feld ausfüllen.');
+            return;
+        }
+
+        let jsonA = null, jsonB = null;
+
+        if (jsonAText) {
+            try {
+                jsonA = JSON.parse(jsonAText);
+            } catch (e) {
+                showError('JSON A ist ungültig: ' + e.message);
+                return;
+            }
+        }
+
+        if (jsonBText) {
+            try {
+                jsonB = JSON.parse(jsonBText);
+            } catch (e) {
+                showError('JSON B ist ungültig: ' + e.message);
+                return;
+            }
+        }
+
+        let normalizedA = jsonA;
+        let normalizedB = jsonB;
+
+        switch (mode) {
+            case 'a-master':
+                // A bleibt, B wird nach A sortiert
+                if (jsonA && jsonB) {
+                    normalizedB = normalizeByMaster(jsonB, jsonA);
+                }
+                break;
+            case 'b-master':
+                // B bleibt, A wird nach B sortiert
+                if (jsonA && jsonB) {
+                    normalizedA = normalizeByMaster(jsonA, jsonB);
+                }
+                break;
+            case 'alphabetical':
+                // Beide alphabetisch
+                if (jsonA) normalizedA = normalizeAlphabetically(jsonA);
+                if (jsonB) normalizedB = normalizeAlphabetically(jsonB);
+                break;
+        }
+
+        // Ergebnis in Textareas schreiben
+        if (normalizedA !== null) {
+            jsonATextarea.value = JSON.stringify(normalizedA, null, 2);
+            updateHighlight(jsonATextarea, highlightA);
+        }
+        if (normalizedB !== null) {
+            jsonBTextarea.value = JSON.stringify(normalizedB, null, 2);
+            updateHighlight(jsonBTextarea, highlightB);
+        }
+
+        // Highlights zurücksetzen
+        clearDiffHighlights();
+    }
 
     copyBtns.forEach(btn => {
         btn.addEventListener('click', async () => {
