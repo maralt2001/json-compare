@@ -391,17 +391,19 @@ html, body {
     left: 0;
     min-width: 180px;
     margin-top: 0.5em;
+    padding: 0.35em;
     background: var(--gray-800);
     border: 2px solid var(--primary-color);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
     z-index: 100;
     display: none;
-    overflow: hidden;
+    flex-direction: column;
+    gap: 0.25em;
 }
 
 .normalize-dropdown.open {
-    display: block;
+    display: flex;
 }
 
 .normalize-option {
@@ -414,6 +416,7 @@ html, body {
     font-weight: 500;
     cursor: pointer;
     border: none;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text-primary);
     text-align: left;
@@ -996,8 +999,39 @@ html, body {
 }
 
 .diff-path {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
     font-weight: 600;
     color: var(--text-primary);
+}
+
+.diff-icon-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2em;
+    padding: 0.15em 0.4em;
+    border-radius: var(--radius-sm);
+    font-size: 0.85em;
+}
+
+.diff-file-icon {
+    flex-shrink: 0;
+}
+
+.diff-icon-letter {
+    font-weight: 700;
+    font-size: 0.9em;
+}
+
+.diff-added .diff-icon-badge {
+    background: rgba(74, 222, 128, 0.15);
+    color: var(--added-color);
+}
+
+.diff-removed .diff-icon-badge {
+    background: rgba(248, 113, 113, 0.15);
+    color: var(--removed-color);
 }
 
 .diff-added .diff-path {
@@ -1146,55 +1180,6 @@ html, body {
     border-left: 4px solid var(--removed-color);
 }
 
-/* Diff Statistics Header */
-.diff-stats-header {
-    margin-bottom: 1em;
-    padding: 1em 1.25em;
-    background: var(--gray-700);
-    border-radius: var(--radius-md);
-    border-left: 4px solid var(--primary-color);
-}
-
-.diff-stats {
-    display: flex;
-    align-items: center;
-    gap: 1em;
-    flex-wrap: wrap;
-}
-
-.stats-deviation {
-    font-weight: 700;
-    font-size: 1.1rem;
-    padding: 0.25em 0.75em;
-    border-radius: var(--radius-sm);
-}
-
-.stats-deviation.stats-low {
-    background: rgba(74, 222, 128, 0.2);
-    color: var(--added-color);
-}
-
-.stats-deviation.stats-medium {
-    background: rgba(252, 211, 77, 0.2);
-    color: #fcd34d;
-}
-
-.stats-deviation.stats-high {
-    background: rgba(248, 113, 113, 0.2);
-    color: var(--removed-color);
-}
-
-.stats-match {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.stats-detail {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    margin-left: auto;
-}
-
 @media (max-width: 768px) {
     .content {
         flex-direction: column;
@@ -1207,15 +1192,5 @@ html, body {
 
     .controls {
         flex-wrap: wrap;
-    }
-
-    .diff-stats {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5em;
-    }
-
-    .stats-detail {
-        margin-left: 0;
     }
 }

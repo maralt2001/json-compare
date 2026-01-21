@@ -9,11 +9,18 @@ Eine clientseitige Webanwendung zum Vergleichen von JSON-Daten. Keine Server-Kom
 ### JSON-Eingabe
 - **Zwei Editoren** für JSON A und JSON B mit Syntax-Highlighting
 - **Datei-Upload** per Button oder Drag & Drop
+- **JSON formatieren** - formatiert einzelne JSONs mit Einrückung
 - **Kopieren** des Inhalts in die Zwischenablage
 - **Leeren** einzelner Textareas
 - **Vollbild-Modus** für komplexere JSON-Strukturen
 - **Aliase** für die JSON-Quellen (z.B. "Production", "Staging")
 - **Beispieldaten** zum schnellen Testen
+
+### JSON-Normalisierung
+- **A ist Master** - sortiert B nach der Key-Reihenfolge von A
+- **B ist Master** - sortiert A nach der Key-Reihenfolge von B
+- **Alphabetisch** - sortiert beide JSONs alphabetisch nach Keys
+- Erleichtert den visuellen Vergleich bei unterschiedlicher Key-Reihenfolge
 
 ### Property-Vorauswahl (Pre-Comparison Selection)
 - **Properties scannen** extrahiert alle Felder aus beiden JSONs
@@ -25,6 +32,7 @@ Eine clientseitige Webanwendung zum Vergleichen von JSON-Daten. Keine Server-Kom
 - **Alle auswählen / Alle abwählen** für schnelle Selektion
 - **Unbegrenzte Tiefe** - funktioniert mit beliebig verschachtelten Strukturen
 - **Einrückung** visualisiert die Verschachtelungsebene
+- **Array-Key-Auswahl** - manuelle Wahl des Vergleichs-Keys für Arrays (Auto, Index-basiert, oder spezifischer Key)
 
 ### Vergleich
 - **Struktureller Vergleich** von JSON-Objekten
@@ -37,7 +45,8 @@ Eine clientseitige Webanwendung zum Vergleichen von JSON-Daten. Keine Server-Kom
   - Unterschiedliche Werte (cyan)
 
 ### Ergebnis-Anzeige
-- **Auf-/zuklappbare** Unterschiede
+- **Auf-/zuklappbare** Unterschiede mit Datei-Icon und A/B-Kennzeichnung
+- **Inline-Diff-Highlighting** - markiert Unterschiede direkt in den Editoren (Toggle per Klick)
 - **Filter** nach Unterschiedstyp (Alle, Nur in A, Nur in B, Unterschiedlich)
 - **Property-Filter** zum Suchen nach bestimmten Feldnamen
 - **Counter** zeigen Anzahl pro Kategorie
