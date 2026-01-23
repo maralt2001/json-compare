@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const normalizeBtn = document.getElementById('normalizeBtn');
     const normalizeDropdown = document.getElementById('normalizeDropdown');
     const normalizeOptions = document.querySelectorAll('.normalize-option');
+    const lineNumbersA = document.getElementById('lineNumbersA');
+    const lineNumbersB = document.getElementById('lineNumbersB');
 
     // ========================================================================
     // CONFIGURATION
@@ -73,8 +75,8 @@ document.addEventListener('DOMContentLoaded', function() {
         diffHighlightsA = [];
         diffHighlightsB = [];
         highlightedPaths = new Set();
-        updateHighlight(jsonATextarea, highlightA);
-        updateHighlight(jsonBTextarea, highlightB);
+        updateHighlight(jsonATextarea, highlightA, lineNumbersA);
+        updateHighlight(jsonBTextarea, highlightB, lineNumbersB);
     }
 
     /**
@@ -326,8 +328,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const targetId = btn.dataset.target;
             const textarea = document.getElementById(targetId);
             const highlight = targetId === 'jsonA' ? highlightA : highlightB;
+            const lineNumbers = targetId === 'jsonA' ? lineNumbersA : lineNumbersB;
             textarea.value = '';
-            updateHighlight(textarea, highlight);
+            updateHighlight(textarea, highlight, lineNumbers);
             resetDiffState();
             resetPropertySelector();
         });
@@ -902,11 +905,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Ergebnis in Textareas schreiben
         if (normalizedA !== null) {
             jsonATextarea.value = JSON.stringify(normalizedA, null, 2);
-            updateHighlight(jsonATextarea, highlightA);
+            updateHighlight(jsonATextarea, highlightA, lineNumbersA);
         }
         if (normalizedB !== null) {
             jsonBTextarea.value = JSON.stringify(normalizedB, null, 2);
-            updateHighlight(jsonBTextarea, highlightB);
+            updateHighlight(jsonBTextarea, highlightB, lineNumbersB);
         }
 
         // Highlights zurücksetzen
@@ -962,25 +965,36 @@ document.addEventListener('DOMContentLoaded', function() {
     jsonBTextarea.addEventListener('input', () => {
         clearDiffHighlights();
     });
-    jsonATextarea.addEventListener('scroll', () => syncScroll(jsonATextarea, highlightA));
-    jsonBTextarea.addEventListener('scroll', () => syncScroll(jsonBTextarea, highlightB));
+    jsonATextarea.addEventListener('scroll', () => syncScroll(jsonATextarea, highlightA, lineNumbersA));
+    jsonBTextarea.addEventListener('scroll', () => syncScroll(jsonBTextarea, highlightB, lineNumbersB));
 
-    function updateHighlight(textarea, highlight, diffRanges = []) {
+    function updateHighlight(textarea, highlight, lineNumbers, diffRanges = []) {
         const text = textarea.value;
         highlight.innerHTML = highlightJSON(text, diffRanges);
+        updateLineNumbers(text, lineNumbers);
+    }
+
+    function updateLineNumbers(text, lineNumbersEl) {
+        const lines = text.split('\n').length;
+        let html = '';
+        for (let i = 1; i <= lines; i++) {
+            html += '<span>' + i + '</span>';
+        }
+        lineNumbersEl.innerHTML = html || '<span>1</span>';
     }
 
     /**
      * Aktualisiert beide JSON-Editoren mit Diff-Highlighting.
      */
     function updateHighlightsWithDiff() {
-        updateHighlight(jsonATextarea, highlightA, diffHighlightsA);
-        updateHighlight(jsonBTextarea, highlightB, diffHighlightsB);
+        updateHighlight(jsonATextarea, highlightA, lineNumbersA, diffHighlightsA);
+        updateHighlight(jsonBTextarea, highlightB, lineNumbersB, diffHighlightsB);
     }
 
-    function syncScroll(textarea, highlight) {
+    function syncScroll(textarea, highlight, lineNumbers) {
         highlight.scrollTop = textarea.scrollTop;
         highlight.scrollLeft = textarea.scrollLeft;
+        lineNumbers.scrollTop = textarea.scrollTop;
     }
 
     function highlightJSON(text, diffRanges = []) {
@@ -1282,6 +1296,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!file) return;
 
         const highlight = textarea === jsonATextarea ? highlightA : highlightB;
+        const lineNumbers = textarea === jsonATextarea ? lineNumbersA : lineNumbersB;
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -1291,7 +1306,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 textarea.value = e.target.result;
                 showError('Die Datei enthält kein gültiges JSON: ' + err.message);
             }
-            updateHighlight(textarea, highlight);
+            updateHighlight(textarea, highlight, lineNumbers);
         };
         reader.readAsText(file);
     }
@@ -1326,22 +1341,43 @@ document.addEventListener('DOMContentLoaded', function() {
 
     jsonATextarea.value = JSON.stringify(exampleA, null, 2);
     jsonBTextarea.value = JSON.stringify(exampleB, null, 2);
-    updateHighlight(jsonATextarea, highlightA);
-    updateHighlight(jsonBTextarea, highlightB);
+    updateHighlight(jsonATextarea, highlightA, lineNumbersA);
+    updateHighlight(jsonBTextarea, highlightB, lineNumbersB);
 
     compareBtn.addEventListener('click', compareJSON);
     formatBtns.forEach(btn => {
         btn.addEventListener('click', () => formatSingleJSON(btn.dataset.target));
     });
     toggleAllBtn.addEventListener('click', toggleAll);
+
+    // Tab-Taste fügt zwei Leerzeichen ein
+    function handleTab(e) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const textarea = e.target;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const spaces = '  ';
+
+            textarea.value = textarea.value.substring(0, start) + spaces + textarea.value.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + spaces.length;
+
+            const highlight = textarea === jsonATextarea ? highlightA : highlightB;
+            const lineNumbers = textarea === jsonATextarea ? lineNumbersA : lineNumbersB;
+            updateHighlight(textarea, highlight, lineNumbers);
+        }
+    }
+
+    jsonATextarea.addEventListener('keydown', handleTab);
+    jsonBTextarea.addEventListener('keydown', handleTab);
     exportBtn.addEventListener('click', exportResults);
     exampleBtn.addEventListener('click', loadExample);
 
     function loadExample() {
         jsonATextarea.value = JSON.stringify(exampleA, null, 2);
         jsonBTextarea.value = JSON.stringify(exampleB, null, 2);
-        updateHighlight(jsonATextarea, highlightA);
-        updateHighlight(jsonBTextarea, highlightB);
+        updateHighlight(jsonATextarea, highlightA, lineNumbersA);
+        updateHighlight(jsonBTextarea, highlightB, lineNumbersB);
     }
 
     filterButtons.forEach(btn => {
@@ -1484,8 +1520,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Diff-Highlights zurücksetzen (werden erst bei Klick auf "Show" angezeigt)
         diffHighlightsA = [];
         diffHighlightsB = [];
-        updateHighlight(jsonATextarea, highlightA);
-        updateHighlight(jsonBTextarea, highlightB);
+        updateHighlight(jsonATextarea, highlightA, lineNumbersA);
+        updateHighlight(jsonBTextarea, highlightB, lineNumbersB);
     }
 
     /**
@@ -1948,13 +1984,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function formatSingleJSON(targetId) {
         const textarea = document.getElementById(targetId);
         const highlight = targetId === 'jsonA' ? highlightA : highlightB;
+        const lineNumbers = targetId === 'jsonA' ? lineNumbersA : lineNumbersB;
         const label = targetId === 'jsonA' ? 'A' : 'B';
 
         try {
             if (textarea.value.trim()) {
                 const json = JSON.parse(textarea.value);
                 textarea.value = JSON.stringify(json, null, 2);
-                updateHighlight(textarea, highlight);
+                updateHighlight(textarea, highlight, lineNumbers);
             }
         } catch (e) {
             showError(`JSON ${label} ist ungültig: ` + e.message);

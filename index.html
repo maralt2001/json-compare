@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Compare My JSON</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="description" content="Vergleiche zwei JSON-Dateien und finde Unterschiede">
+    <meta name="theme-color" content="#22d3ee">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/icon.svg">
   </head>
   <body>
     <div class="headline">
@@ -83,6 +88,7 @@
           </div>
         </div>
         <div class="editor-wrapper">
+          <div class="line-numbers" id="lineNumbersA"></div>
           <pre class="syntax-highlight" id="highlightA"></pre>
           <textarea id="jsonA" placeholder="JSON A hier eingeben..." spellcheck="false"></textarea>
         </div>
@@ -110,6 +116,7 @@
           </div>
         </div>
         <div class="editor-wrapper">
+          <div class="line-numbers" id="lineNumbersB"></div>
           <pre class="syntax-highlight" id="highlightB"></pre>
           <textarea id="jsonB" placeholder="JSON B hier eingeben..." spellcheck="false"></textarea>
         </div>
@@ -138,6 +145,14 @@
       <div id="diffResult" class="diff-result"></div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="js/script.js"></script>
+    <script>
+      // Service Worker registrieren
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./js/sw.js')
+          .then(() => console.log('Service Worker registriert'))
+          .catch((err) => console.log('Service Worker Fehler:', err));
+      }
+    </script>
   </body>
 </html>

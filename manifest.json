@@ -1,0 +1,18 @@
+{
+  "name": "Compare My JSON",
+  "short_name": "JSON Compare",
+  "description": "Vergleiche zwei JSON-Dateien und finde Unterschiede",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#22d3ee",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
