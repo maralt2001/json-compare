@@ -2,7 +2,7 @@
 
 Eine clientseitige Webanwendung zum Vergleichen von JSON-Daten. Keine Server-Komponente erforderlich - läuft vollständig im Browser.
 
-![Compare My JSON Screenshot](CompareMyJson.png)
+![Compare My JSON Screenshot](/assets/CompareMyJson.png)
 
 ## Features
 
