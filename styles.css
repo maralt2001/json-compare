@@ -84,7 +84,137 @@ html, body {
     border-bottom: 1px solid var(--border-color);
 }
 
-.controls button {
+/* Styled Buttons (Uiverse-Style) */
+.styled-btn {
+    border-radius: 15px;
+    cursor: pointer;
+    transition: 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    padding: 2px;
+}
+
+.styled-btn-inner {
+    padding: 0.6em 1.5em;
+    border-radius: 13px;
+    background-color: var(--gray-900);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3em;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: 0.3s ease;
+}
+
+/* Primary (Cyan) */
+.styled-btn-primary {
+    background: linear-gradient(
+        to bottom right,
+        var(--cyan-400) 0%,
+        rgba(34, 211, 238, 0) 30%
+    );
+    background-color: rgba(34, 211, 238, 0.2);
+}
+
+.styled-btn-primary:hover,
+.styled-btn-primary:focus {
+    background-color: rgba(34, 211, 238, 0.7);
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+    outline: none;
+}
+
+.styled-btn-primary .styled-btn-inner {
+    color: var(--cyan-300);
+}
+
+/* Violet */
+.styled-btn-violet {
+    background: linear-gradient(
+        to bottom right,
+        var(--violet-500) 0%,
+        rgba(139, 92, 246, 0) 30%
+    );
+    background-color: rgba(139, 92, 246, 0.2);
+}
+
+.styled-btn-violet:hover,
+.styled-btn-violet:focus {
+    background-color: rgba(139, 92, 246, 0.7);
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+    outline: none;
+}
+
+.styled-btn-violet .styled-btn-inner {
+    color: var(--violet-300);
+}
+
+/* Gray */
+.styled-btn-gray {
+    background: linear-gradient(
+        to bottom right,
+        var(--gray-500) 0%,
+        rgba(107, 114, 128, 0) 30%
+    );
+    background-color: rgba(107, 114, 128, 0.2);
+}
+
+.styled-btn-gray:hover,
+.styled-btn-gray:focus {
+    background-color: rgba(107, 114, 128, 0.5);
+    box-shadow: 0 0 10px rgba(107, 114, 128, 0.4);
+    outline: none;
+}
+
+.styled-btn-gray .styled-btn-inner {
+    color: var(--gray-300);
+}
+
+/* Disabled State */
+.styled-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.styled-btn:disabled,
+.styled-btn:disabled:hover,
+.styled-btn:disabled:focus {
+    background: linear-gradient(
+        to bottom right,
+        var(--gray-600) 0%,
+        rgba(75, 85, 99, 0) 30%
+    );
+    background-color: rgba(75, 85, 99, 0.15);
+    box-shadow: none;
+}
+
+.styled-btn:disabled .styled-btn-inner {
+    color: var(--gray-500);
+}
+
+/* Arrow Styles for Dropdowns */
+.prop-selector-arrow,
+.normalize-arrow {
+    font-size: 0.7em;
+    transition: transform 0.2s ease;
+    margin-left: 0.3em;
+}
+
+.property-selector:has(.prop-selector-dropdown.open) .prop-selector-arrow,
+.normalize-selector:has(.normalize-dropdown.open) .normalize-arrow {
+    transform: rotate(180deg);
+}
+
+.btn-icon {
+    font-weight: 700;
+    margin-right: 0.3em;
+}
+
+/* Fallback for non-styled controls buttons */
+.controls button:not(.styled-btn):not(.prop-selector-btn):not(.normalize-btn):not(.normalize-option) {
     padding: 0.75em 1.75em;
     font-size: 0.9rem;
     font-weight: 500;
@@ -97,92 +227,20 @@ html, body {
     box-shadow: var(--shadow-sm);
 }
 
-.controls button:hover {
+.controls button:not(.styled-btn):not(.prop-selector-btn):not(.normalize-btn):not(.normalize-option):hover {
     background: var(--primary-hover);
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);
 }
 
-.controls button:active {
+.controls button:not(.styled-btn):not(.prop-selector-btn):not(.normalize-btn):not(.normalize-option):active {
     transform: translateY(0);
-}
-
-.btn-icon {
-    font-weight: 700;
-    margin-right: 0.3em;
-}
-
-.controls button#exampleBtn {
-    background: var(--gray-700);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-}
-
-.controls button#exampleBtn:hover {
-    background: var(--gray-600);
-    color: var(--text-primary);
-}
-
-.controls button#scanPropsBtn {
-    background: var(--violet-600);
-    color: white;
-    border: 1px solid var(--violet-600);
-}
-
-.controls button#scanPropsBtn:hover {
-    background: var(--violet-500);
-    border-color: var(--violet-500);
 }
 
 /* Property Selector Dropdown */
 .property-selector {
     position: relative;
     display: inline-block;
-}
-
-.controls .prop-selector-btn,
-.controls button.prop-selector-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-    padding: 0.75em 1.25em;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    border: 1px solid var(--violet-600);
-    border-radius: var(--radius-md);
-    background: var(--violet-600);
-    color: white;
-    transition: all 0.2s ease;
-    box-shadow: var(--shadow-sm);
-}
-
-.controls .prop-selector-btn:hover:not(:disabled),
-.controls button.prop-selector-btn:hover:not(:disabled) {
-    background: var(--violet-500);
-    border-color: var(--violet-500);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
-}
-
-.controls .prop-selector-btn:disabled,
-.controls button.prop-selector-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    background: var(--gray-700);
-    border-color: var(--gray-600);
-    color: var(--gray-500);
-    transform: none;
-}
-
-.prop-selector-arrow {
-    font-size: 0.7em;
-    transition: transform 0.2s ease;
-}
-
-.prop-selector-dropdown.open + .prop-selector-btn .prop-selector-arrow,
-.property-selector:has(.prop-selector-dropdown.open) .prop-selector-arrow {
-    transform: rotate(180deg);
 }
 
 .prop-selector-dropdown {
@@ -351,38 +409,6 @@ html, body {
 .normalize-selector {
     position: relative;
     display: inline-block;
-}
-
-.normalize-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-    padding: 0.75em 1.25em;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    border: 1px solid var(--primary-color);
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--primary-color);
-    transition: all 0.2s ease;
-    box-shadow: var(--shadow-sm);
-}
-
-.normalize-btn:hover {
-    background: var(--primary-color);
-    color: var(--gray-900);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
-}
-
-.normalize-arrow {
-    font-size: 0.7em;
-    transition: transform 0.2s ease;
-}
-
-.normalize-selector:has(.normalize-dropdown.open) .normalize-arrow {
-    transform: rotate(180deg);
 }
 
 .normalize-dropdown {

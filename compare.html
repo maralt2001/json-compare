@@ -12,12 +12,20 @@
     </div>
 
     <div class="controls">
-      <button id="compareBtn"><span class="btn-icon">A ⇄ B</span> Vergleichen</button>
-      <button id="scanPropsBtn">Properties scannen</button>
+      <button id="compareBtn" class="styled-btn styled-btn-primary">
+        <span class="styled-btn-inner">
+          <span class="btn-icon">A ⇄ B</span> Vergleichen
+        </span>
+      </button>
+      <button id="scanPropsBtn" class="styled-btn styled-btn-violet">
+        <span class="styled-btn-inner">Properties scannen</span>
+      </button>
       <div class="property-selector">
-        <button id="propSelectorBtn" class="prop-selector-btn" disabled>
-          <span class="prop-selector-text">Properties auswählen</span>
-          <span class="prop-selector-arrow">▼</span>
+        <button id="propSelectorBtn" class="styled-btn styled-btn-violet" disabled>
+          <span class="styled-btn-inner">
+            <span class="prop-selector-text">Properties auswählen</span>
+            <span class="prop-selector-arrow">▼</span>
+          </span>
         </button>
         <div id="propSelectorDropdown" class="prop-selector-dropdown">
           <div class="prop-selector-actions">
@@ -28,9 +36,11 @@
         </div>
       </div>
       <div class="normalize-selector">
-        <button id="normalizeBtn" class="normalize-btn">
-          <span class="btn-icon">↕</span> Normalisieren
-          <span class="normalize-arrow">▼</span>
+        <button id="normalizeBtn" class="styled-btn styled-btn-primary">
+          <span class="styled-btn-inner">
+            <span class="btn-icon">↕</span> Normalisieren
+            <span class="normalize-arrow">▼</span>
+          </span>
         </button>
         <div id="normalizeDropdown" class="normalize-dropdown">
           <button class="normalize-option" data-mode="a-master">
@@ -44,7 +54,9 @@
           </button>
         </div>
       </div>
-      <button id="exampleBtn">Beispiel laden</button>
+      <button id="exampleBtn" class="styled-btn styled-btn-gray">
+        <span class="styled-btn-inner">Beispiel laden</span>
+      </button>
     </div>
 
     <div class="content">
