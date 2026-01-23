@@ -340,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
         diffHighlightsB = [];
         highlightedPaths = new Set();
         allCollapsed = true;
-        toggleAllBtn.textContent = 'Alle aufklappen';
+        toggleAllBtn.innerHTML = '<span class="styled-btn-inner">Alle aufklappen</span>';
         currentFilter = 'all';
         propertyFilterValue = '';
         propertyFilter.value = '';
@@ -1385,7 +1385,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        toggleAllBtn.textContent = allCollapsed ? 'Alle aufklappen' : 'Alle zuklappen';
+        toggleAllBtn.innerHTML = '<span class="styled-btn-inner">' + (allCollapsed ? 'Alle aufklappen' : 'Alle zuklappen') + '</span>';
     }
 
     function exportResults() {
@@ -1907,7 +1907,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function displayDifferences(differences) {
         diffResult.innerHTML = '';
         allCollapsed = true;
-        toggleAllBtn.textContent = 'Alle aufklappen';
+        toggleAllBtn.innerHTML = '<span class="styled-btn-inner">Alle aufklappen</span>';
         currentFilter = 'all';
 
         const nameA = aliasA.value.trim() || 'A';

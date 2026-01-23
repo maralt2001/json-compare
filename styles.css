@@ -72,7 +72,15 @@ html, body {
     font-weight: 600;
     letter-spacing: -0.5px;
     font-size: 1.75rem;
-    color: var(--primary-color);
+    background: linear-gradient(
+        135deg,
+        var(--cyan-300) 0%,
+        var(--cyan-500) 50%,
+        var(--cyan-300) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .controls {
@@ -171,6 +179,18 @@ html, body {
 
 .styled-btn-gray .styled-btn-inner {
     color: var(--gray-300);
+}
+
+/* Small Button Variant */
+.styled-btn-sm {
+    border-radius: 10px;
+    padding: 1px;
+}
+
+.styled-btn-sm .styled-btn-inner {
+    padding: 0.35em 0.8em;
+    border-radius: 9px;
+    font-size: 0.8rem;
 }
 
 /* Disabled State */
