@@ -44,6 +44,62 @@ Eine clientseitige Webanwendung zum Vergleichen von JSON-Daten. Keine Server-Kom
   - Nur in B (grün)
   - Unterschiedliche Werte (cyan)
 
+### Key-basierter Array-Vergleich
+
+Bei Arrays von Objekten können ein oder mehrere Properties als **Identifier-Keys** definiert werden, um Objekte eindeutig zu identifizieren - unabhängig von ihrer Position im Array.
+
+#### Vergleichs-Modi
+
+| Modus | Beschreibung | Pfad-Format |
+|-------|--------------|-------------|
+| **Auto** | Automatische Key-Erkennung (id, name, etc.) | `array[key=value]` |
+| **Index** | Position-basierter Vergleich | `array[0]`, `array[1]` |
+| **Manuell** | Ein oder mehrere Keys auswählen | `array[key1=val1,key2=val2]` |
+
+#### Composite Keys (Zusammengesetzte Schlüssel)
+
+Wenn ein einzelner Key nicht eindeutig ist, können mehrere Keys kombiniert werden:
+
+**Beispiel:** Eine Firma hat mehrere Mitarbeiter pro Abteilung. `abteilung` allein ist nicht eindeutig, aber `abteilung` + `name` zusammen identifiziert jeden Mitarbeiter.
+
+**JSON A:**
+```json
+{
+  "mitarbeiter": [
+    { "abteilung": "IT", "name": "Müller", "gehalt": 4500, "aktiv": true },
+    { "abteilung": "IT", "name": "Schmidt", "gehalt": 4200, "aktiv": true },
+    { "abteilung": "HR", "name": "Weber", "gehalt": 3800, "aktiv": true }
+  ]
+}
+```
+
+**JSON B:**
+```json
+{
+  "mitarbeiter": [
+    { "abteilung": "IT", "name": "Müller", "gehalt": 4800, "aktiv": true },
+    { "abteilung": "IT", "name": "Schmidt", "gehalt": 4200, "aktiv": false },
+    { "abteilung": "HR", "name": "Fischer", "gehalt": 4000, "aktiv": true }
+  ]
+}
+```
+
+**Ergebnis mit Keys `abteilung` + `name`:**
+
+| Pfad | Typ | A | B |
+|------|-----|---|---|
+| `mitarbeiter[abteilung=IT,name=Müller].gehalt` | geändert | 4500 | 4800 |
+| `mitarbeiter[abteilung=IT,name=Schmidt].aktiv` | geändert | true | false |
+| `mitarbeiter[abteilung=HR,name=Weber]` | nur in A | ✓ | - |
+| `mitarbeiter[abteilung=HR,name=Fischer]` | nur in B | - | ✓ |
+
+#### Key-Auswahl im UI
+
+1. **Properties scannen** klicken
+2. Beim Array (z.B. `permission`) auf den **Key-Button** klicken
+3. **"Keys wählen"** auswählen und die gewünschten Keys aktivieren
+4. Key-Properties werden mit 🔑 markiert und aus dem Vergleich ausgeschlossen (da sie zur Identifikation dienen, nicht zum Vergleich)
+
 ### Ergebnis-Anzeige
 - **Auf-/zuklappbare** Unterschiede mit Datei-Icon und A/B-Kennzeichnung
 - **Inline-Diff-Highlighting** - markiert Unterschiede direkt in den Editoren (Toggle per Klick)
