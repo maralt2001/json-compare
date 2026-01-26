@@ -390,12 +390,141 @@ html, body {
     color: var(--added-color);
 }
 
+/* Key Symbol (ersetzt Checkbox bei Key-Properties) */
+.prop-key-symbol {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    font-size: 0.75em;
+    cursor: help;
+}
+
+.prop-selector-item.is-key .prop-name {
+    color: var(--violet-400) !important;
+}
+
 /* Array Key Selector */
 .array-key-selector {
     margin-left: auto;
     padding-left: 0.5em;
 }
 
+.array-key-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+button.array-key-toggle,
+.array-key-toggle {
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 0.75rem !important;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: none !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    color: var(--text-secondary) !important;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    white-space: nowrap;
+    line-height: 1 !important;
+    opacity: 0.7;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+button.array-key-toggle::after,
+.array-key-toggle::after {
+    content: '▾';
+    font-size: 0.7em;
+    margin-left: 3px;
+}
+
+button.array-key-toggle:hover,
+.array-key-toggle:hover {
+    color: var(--violet-400) !important;
+    opacity: 1;
+    background: none !important;
+    background-color: transparent !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.array-key-dropdown {
+    position: fixed;
+    min-width: 140px;
+    background: var(--gray-900);
+    border: 1px solid var(--gray-600);
+    border-radius: 5px;
+    padding: 0.4em;
+    z-index: 9999;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+}
+
+.array-key-option {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.3em 0.4em;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.15s ease;
+    white-space: nowrap;
+}
+
+.array-key-option:hover {
+    background: var(--gray-700);
+    color: var(--text-primary);
+}
+
+.array-key-option input[type="radio"] {
+    margin: 0;
+    width: 12px;
+    height: 12px;
+    accent-color: var(--violet-500);
+}
+
+.array-key-checkboxes {
+    margin-left: 1.2em;
+    margin-top: 0.2em;
+    padding: 0.2em 0 0.2em 0.4em;
+    border-left: 2px solid var(--gray-600);
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.array-key-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35em;
+    padding: 0.2em 0.35em;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.15s ease;
+    white-space: nowrap;
+}
+
+.array-key-checkbox-label:hover {
+    background: var(--gray-700);
+    color: var(--text-primary);
+}
+
+.array-key-checkbox-label input[type="checkbox"] {
+    margin: 0;
+    width: 12px;
+    height: 12px;
+    accent-color: var(--violet-500);
+}
+
+/* Legacy support */
 .array-key-select {
     padding: 0.2em 0.5em;
     font-size: 0.7rem;

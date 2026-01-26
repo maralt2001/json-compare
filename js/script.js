@@ -527,6 +527,85 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
+     * Entfernt einen Key aus der Auswahl, wenn das zugehörige Property abgewählt wurde.
+     *
+     * @param {string} propPath - Der Pfad des abgewählten Properties (z.B. "permission.domain")
+     */
+    function removeKeyIfDeselected(propPath) {
+        const parts = propPath.split('.');
+        if (parts.length < 2) return;
+
+        const keyName = parts.pop();
+        const arrayPath = parts.join('.');
+
+        const setting = manualArrayKeys.get(arrayPath);
+        if (setting && setting.mode === 'manual' && setting.keys) {
+            const newKeys = setting.keys.filter(k => k !== keyName);
+            if (newKeys.length > 0) {
+                manualArrayKeys.set(arrayPath, { mode: 'manual', keys: newKeys });
+            } else {
+                manualArrayKeys.delete(arrayPath);
+            }
+        }
+    }
+
+    /**
+     * Aktualisiert alle Key-Dropdowns basierend auf den ausgewählten Properties.
+     * Deaktiviert Checkboxen für nicht ausgewählte Properties.
+     */
+    function updateAllKeyDropdowns() {
+        document.querySelectorAll('.array-key-checkbox-label').forEach(label => {
+            const checkbox = label.querySelector('input[type="checkbox"]');
+            if (!checkbox) return;
+
+            const keyName = checkbox.value;
+            const dropdown = label.closest('.array-key-dropdown');
+            const wrapper = dropdown?.closest('.array-key-wrapper');
+            const selector = wrapper?.closest('.array-key-selector');
+            const item = selector?.closest('.prop-selector-item');
+            const parentCheckbox = item?.querySelector('input[data-path]');
+
+            if (parentCheckbox) {
+                const arrayPath = parentCheckbox.dataset.path;
+                const keyPropPath = arrayPath + '.' + keyName;
+                const isSelected = selectedProperties.has(keyPropPath);
+
+                checkbox.disabled = !isSelected;
+                label.style.opacity = isSelected ? '1' : '0.4';
+                label.title = isSelected ? '' : 'Property muss ausgewählt sein';
+
+                // Wenn Key ausgewählt aber Property nicht, entferne Key
+                if (checkbox.checked && !isSelected) {
+                    checkbox.checked = false;
+                    removeKeyIfDeselected(keyPropPath);
+                }
+            }
+        });
+
+        // Aktualisiere Button-Texte
+        document.querySelectorAll('.array-key-toggle').forEach(btn => {
+            const wrapper = btn.closest('.array-key-wrapper');
+            const selector = wrapper?.closest('.array-key-selector');
+            const item = selector?.closest('.prop-selector-item');
+            const parentCheckbox = item?.querySelector('input[data-path]');
+
+            if (parentCheckbox) {
+                const path = parentCheckbox.dataset.path;
+                const setting = manualArrayKeys.get(path);
+
+                if (!setting || setting.mode === 'auto') {
+                    btn.textContent = 'Auto';
+                } else if (setting.mode === 'none') {
+                    btn.textContent = 'Idx';
+                } else if (setting.mode === 'manual' && setting.keys) {
+                    const count = setting.keys.length;
+                    btn.textContent = count === 1 ? setting.keys[0] : `Keys: ${count}`;
+                }
+            }
+        });
+    }
+
+    /**
      * Erstellt das Dropdown-Element für die manuelle Key-Auswahl bei Arrays.
      *
      * @param {string} path - Der Pfad des Arrays
@@ -537,58 +616,226 @@ document.addEventListener('DOMContentLoaded', function() {
         const container = document.createElement('span');
         container.className = 'array-key-selector';
 
-        const select = document.createElement('select');
-        select.className = 'array-key-select';
-        select.title = 'Vergleichs-Key für dieses Array wählen';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'array-key-wrapper';
 
-        // Option: Auto (default)
-        const autoOption = document.createElement('option');
-        autoOption.value = 'auto';
-        autoOption.textContent = 'Auto';
-        select.appendChild(autoOption);
+        // Toggle-Button für das Dropdown
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'array-key-toggle';
+        toggleBtn.title = 'Vergleichs-Keys für dieses Array wählen';
 
-        // Option: Index-basiert (kein Key)
-        const indexOption = document.createElement('option');
-        indexOption.value = 'none';
-        indexOption.textContent = '-- Index';
-        select.appendChild(indexOption);
-
-        // Verfügbare Keys als Optionen
-        const sortedKeys = [...availableKeys].sort();
-        sortedKeys.forEach(key => {
-            const option = document.createElement('option');
-            option.value = key;
-            option.textContent = key;
-            select.appendChild(option);
-        });
-
-        // Aktuellen Wert setzen falls vorhanden
+        // Aktuellen Wert für Button-Text ermitteln
         const currentSetting = manualArrayKeys.get(path);
-        if (currentSetting) {
-            if (currentSetting.mode === 'none') {
-                select.value = 'none';
-            } else if (currentSetting.mode === 'manual' && currentSetting.key) {
-                select.value = currentSetting.key;
+        const updateButtonText = () => {
+            const setting = manualArrayKeys.get(path);
+            if (!setting || setting.mode === 'auto') {
+                toggleBtn.textContent = 'Auto';
+            } else if (setting.mode === 'none') {
+                toggleBtn.textContent = 'Idx';
+            } else if (setting.mode === 'manual' && setting.keys) {
+                const count = setting.keys.length;
+                toggleBtn.textContent = count === 1 ? setting.keys[0] : `Keys: ${count}`;
             }
-        }
+        };
+        updateButtonText();
 
-        // Event-Listener für Änderungen
-        select.addEventListener('change', (e) => {
-            e.stopPropagation();
-            const value = e.target.value;
-            if (value === 'auto') {
-                manualArrayKeys.delete(path);
-            } else if (value === 'none') {
-                manualArrayKeys.set(path, { mode: 'none', key: null });
+        // Dropdown-Container
+        const dropdown = document.createElement('div');
+        dropdown.className = 'array-key-dropdown';
+        dropdown.style.display = 'none';
+
+        // Option: Auto
+        const autoLabel = document.createElement('label');
+        autoLabel.className = 'array-key-option';
+        const autoRadio = document.createElement('input');
+        autoRadio.type = 'radio';
+        autoRadio.name = `array-key-mode-${path}`;
+        autoRadio.value = 'auto';
+        autoRadio.checked = !currentSetting || currentSetting.mode === 'auto';
+        autoLabel.appendChild(autoRadio);
+        autoLabel.appendChild(document.createTextNode(' Auto'));
+        dropdown.appendChild(autoLabel);
+
+        // Option: Index-basiert
+        const indexLabel = document.createElement('label');
+        indexLabel.className = 'array-key-option';
+        const indexRadio = document.createElement('input');
+        indexRadio.type = 'radio';
+        indexRadio.name = `array-key-mode-${path}`;
+        indexRadio.value = 'none';
+        indexRadio.checked = currentSetting?.mode === 'none';
+        indexLabel.appendChild(indexRadio);
+        indexLabel.appendChild(document.createTextNode(' Index-basiert'));
+        dropdown.appendChild(indexLabel);
+
+        // Option: Manuell mit Key-Auswahl
+        const manualLabel = document.createElement('label');
+        manualLabel.className = 'array-key-option';
+        const manualRadio = document.createElement('input');
+        manualRadio.type = 'radio';
+        manualRadio.name = `array-key-mode-${path}`;
+        manualRadio.value = 'manual';
+        manualRadio.checked = currentSetting?.mode === 'manual';
+        manualLabel.appendChild(manualRadio);
+        manualLabel.appendChild(document.createTextNode(' Keys wählen:'));
+        dropdown.appendChild(manualLabel);
+
+        // Key-Checkboxen Container
+        const keysContainer = document.createElement('div');
+        keysContainer.className = 'array-key-checkboxes';
+
+        const sortedKeys = [...availableKeys].sort();
+        const selectedKeys = currentSetting?.mode === 'manual' ? new Set(currentSetting.keys || []) : new Set();
+
+        sortedKeys.forEach(key => {
+            const keyPropPath = path + '.' + key;
+            const isPropSelected = selectedProperties && selectedProperties.has(keyPropPath);
+
+            const keyLabel = document.createElement('label');
+            keyLabel.className = 'array-key-checkbox-label';
+            if (!isPropSelected) {
+                keyLabel.style.opacity = '0.4';
+                keyLabel.title = 'Property muss ausgewählt sein';
+            }
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = key;
+            checkbox.checked = selectedKeys.has(key);
+            checkbox.disabled = !isPropSelected;
+
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                // Bei Checkbox-Änderung: Manuell-Modus aktivieren
+                manualRadio.checked = true;
+                updateManualKeys();
+            });
+            checkbox.addEventListener('click', (e) => e.stopPropagation());
+            keyLabel.appendChild(checkbox);
+            keyLabel.appendChild(document.createTextNode(' ' + key));
+            keysContainer.appendChild(keyLabel);
+        });
+        dropdown.appendChild(keysContainer);
+
+        // Funktion zum Aktualisieren der Key-Indikatoren in der Property-Liste
+        const updateKeyIndicators = () => {
+            const setting = manualArrayKeys.get(path);
+            const selectedKeys = (setting && setting.mode === 'manual' && setting.keys) ? setting.keys : [];
+
+            // Finde alle Child-Properties dieses Arrays (sowohl Checkboxen als auch Key-Symbole)
+            propSelectorList.querySelectorAll('.prop-selector-item').forEach(item => {
+                const checkbox = item.querySelector('input[type="checkbox"][data-path]');
+                const keySymbol = item.querySelector('.prop-key-symbol[data-path]');
+                const element = checkbox || keySymbol;
+
+                if (element && element.dataset.path && element.dataset.path.startsWith(path + '.')) {
+                    const propKey = element.dataset.path.split('.').pop();
+                    const propPath = element.dataset.path;
+                    const arrow = item.querySelector('.prop-tree-arrow');
+
+                    if (selectedKeys.includes(propKey)) {
+                        // Property ist ein Key: Checkbox durch 🔑 ersetzen
+                        if (checkbox) {
+                            selectedProperties.delete(propPath);
+                            const keySymbolNew = document.createElement('span');
+                            keySymbolNew.className = 'prop-key-symbol';
+                            keySymbolNew.textContent = '🔑';
+                            keySymbolNew.title = 'Wird als Identifier-Key verwendet';
+                            keySymbolNew.dataset.path = propPath;
+                            checkbox.replaceWith(keySymbolNew);
+                        }
+                        item.classList.add('is-key');
+                    } else {
+                        // Property ist kein Key mehr: 🔑 durch Checkbox ersetzen
+                        if (keySymbol) {
+                            const newCheckbox = document.createElement('input');
+                            newCheckbox.type = 'checkbox';
+                            newCheckbox.checked = selectedProperties.has(propPath);
+                            newCheckbox.dataset.path = propPath;
+                            newCheckbox.addEventListener('change', (e) => {
+                                e.stopPropagation();
+                                if (e.target.checked) {
+                                    selectedProperties.add(propPath);
+                                } else {
+                                    selectedProperties.delete(propPath);
+                                    removeKeyIfDeselected(propPath);
+                                }
+                                updatePropertySelectorButtonText();
+                                updateAllKeyDropdowns();
+                            });
+                            keySymbol.replaceWith(newCheckbox);
+                        }
+                        item.classList.remove('is-key');
+                    }
+                }
+            });
+
+            updatePropertySelectorButtonText();
+        };
+
+        // Funktion zum Aktualisieren der manuellen Keys
+        const updateManualKeys = () => {
+            const checkedKeys = [...keysContainer.querySelectorAll('input[type="checkbox"]:checked')]
+                .map(cb => cb.value);
+            if (checkedKeys.length > 0) {
+                manualArrayKeys.set(path, { mode: 'manual', keys: checkedKeys });
             } else {
-                manualArrayKeys.set(path, { mode: 'manual', key: value });
+                manualArrayKeys.delete(path);
+                autoRadio.checked = true;
+            }
+            updateButtonText();
+            updateKeyIndicators();
+        };
+
+        // Event-Listener für Radio-Buttons
+        [autoRadio, indexRadio, manualRadio].forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                e.stopPropagation();
+                if (autoRadio.checked) {
+                    manualArrayKeys.delete(path);
+                } else if (indexRadio.checked) {
+                    manualArrayKeys.set(path, { mode: 'none', keys: null });
+                } else if (manualRadio.checked) {
+                    updateManualKeys();
+                }
+                updateButtonText();
+                updateKeyIndicators();
+            });
+            radio.addEventListener('click', (e) => e.stopPropagation());
+        });
+
+        // Toggle-Button Event
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = dropdown.style.display !== 'none';
+
+            // Schließe alle anderen Array-Key-Dropdowns
+            document.querySelectorAll('.array-key-dropdown').forEach(d => {
+                if (d !== dropdown) d.style.display = 'none';
+            });
+
+            if (isVisible) {
+                dropdown.style.display = 'none';
+            } else {
+                // Position berechnen basierend auf Button-Position
+                const rect = toggleBtn.getBoundingClientRect();
+                dropdown.style.display = 'block';
+                dropdown.style.top = (rect.bottom + 4) + 'px';
+                dropdown.style.left = Math.max(8, rect.right - dropdown.offsetWidth) + 'px';
             }
         });
 
-        // Verhindere dass Klick auf Select das Item-Toggle auslöst
-        select.addEventListener('click', (e) => e.stopPropagation());
+        // Schließen bei Klick außerhalb
+        document.addEventListener('click', (e) => {
+            if (!wrapper.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
 
-        container.appendChild(select);
+        wrapper.appendChild(toggleBtn);
+        wrapper.appendChild(dropdown);
+        container.appendChild(wrapper);
         return container;
     }
 
@@ -734,26 +981,49 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             item.appendChild(arrow);
 
-            // Checkbox
+            // Prüfe ob dieses Property ein Key des Parent-Arrays ist
+            const parentKeySetting = manualArrayKeys.get(parentPath);
+            let isKey = false;
+            if (parentKeySetting && parentKeySetting.mode === 'manual' && parentKeySetting.keys) {
+                isKey = parentKeySetting.keys.includes(key);
+            }
+
+            // Checkbox oder Key-Symbol
             if (prop) {
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.checked = selectedProperties.has(prop.path);
-                checkbox.dataset.path = prop.path;
-                checkbox.addEventListener('change', (e) => {
-                    e.stopPropagation();
-                    if (e.target.checked) {
-                        selectedProperties.add(prop.path);
-                    } else {
-                        selectedProperties.delete(prop.path);
-                    }
-                    // Auch alle Kind-Properties mit aktualisieren
-                    if (hasChildren) {
-                        toggleChildProperties(prop.path, e.target.checked);
-                    }
-                    updatePropertySelectorButtonText();
-                });
-                item.appendChild(checkbox);
+                if (isKey) {
+                    // Key-Property: Zeige 🔑 statt Checkbox
+                    const keySymbol = document.createElement('span');
+                    keySymbol.className = 'prop-key-symbol';
+                    keySymbol.textContent = '🔑';
+                    keySymbol.title = 'Wird als Identifier-Key verwendet';
+                    keySymbol.dataset.path = prop.path;
+                    item.appendChild(keySymbol);
+                    item.classList.add('is-key');
+                    // Key-Properties aus selectedProperties entfernen
+                    selectedProperties.delete(prop.path);
+                } else {
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.checked = selectedProperties.has(prop.path);
+                    checkbox.dataset.path = prop.path;
+                    checkbox.addEventListener('change', (e) => {
+                        e.stopPropagation();
+                        if (e.target.checked) {
+                            selectedProperties.add(prop.path);
+                        } else {
+                            selectedProperties.delete(prop.path);
+                            // Prüfe ob dieses Property ein Key war und entferne es
+                            removeKeyIfDeselected(prop.path);
+                        }
+                        // Auch alle Kind-Properties mit aktualisieren
+                        if (hasChildren) {
+                            toggleChildProperties(prop.path, e.target.checked);
+                        }
+                        updatePropertySelectorButtonText();
+                        updateAllKeyDropdowns();
+                    });
+                    item.appendChild(checkbox);
+                }
             } else {
                 // Platzhalter für Alignment wenn keine Checkbox
                 const spacer = document.createElement('span');
@@ -1043,7 +1313,8 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             // Pfad in Teile zerlegen
             const parts = [];
-            const pathRegex = /([^.\[\]]+)|\[(\d+)\]|\[([^\]]+=[^\]]+)\]/g;
+            // Regex für: key | [index] | [key=val] oder [key1=val1,key2=val2,...]
+            const pathRegex = /([^.\[\]]+)|\[(\d+)\]|\[([^\]]+)\]/g;
             let match;
             while ((match = pathRegex.exec(path)) !== null) {
                 if (match[1]) {
@@ -1051,9 +1322,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (match[2]) {
                     parts.push({ type: 'index', value: parseInt(match[2]) });
                 } else if (match[3]) {
-                    // Key-basierter Array-Zugriff (z.B. [vorname=stefan])
-                    const [key, val] = match[3].split('=');
-                    parts.push({ type: 'keyMatch', key, value: val });
+                    // Key-basierter Array-Zugriff (z.B. [vorname=stefan] oder [domain=learning,policyName=read])
+                    const keyValuePairs = match[3].split(',').map(pair => {
+                        const [key, ...valueParts] = pair.split('=');
+                        return { key: key.trim(), value: valueParts.join('=').trim() };
+                    });
+                    parts.push({ type: 'keyMatch', pairs: keyValuePairs });
                 }
             }
 
@@ -1103,39 +1377,51 @@ document.addEventListener('DOMContentLoaded', function() {
                     while (pos < jsonText.length && /[\s,]/.test(jsonText[pos])) pos++;
 
                 } else if (part.type === 'keyMatch') {
-                    // Finde das Array und suche Element mit passendem Key-Value
+                    // Finde das Array und suche Element mit passenden Key-Value-Paaren
                     const arrayStart = jsonText.indexOf('[', pos);
                     if (arrayStart === -1) return null;
                     pos = arrayStart + 1;
 
-                    // Suche nach dem Objekt mit dem passenden Key
-                    const searchPattern = new RegExp(`"${part.key}"\\s*:\\s*"${part.value}"`);
+                    // Erstelle Regex-Patterns für alle Key-Value-Paare
+                    const searchPatterns = part.pairs.map(pair => {
+                        // Unterstütze sowohl String-Werte ("value") als auch primitive Werte (123, true)
+                        const escapedKey = pair.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const escapedValue = pair.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        return new RegExp(`"${escapedKey}"\\s*:\\s*("${escapedValue}"|${escapedValue})`);
+                    });
+
                     let depth = 0;
                     let objStart = -1;
+                    let found = false;
 
-                    while (pos < jsonText.length) {
+                    while (pos < jsonText.length && !found) {
                         const char = jsonText[pos];
-                        if (char === '{' && depth === 0) {
-                            objStart = pos;
-                        }
-                        if (char === '[' || char === '{') depth++;
-                        else if (char === ']' || char === '}') {
+
+                        if (char === '{') {
+                            if (depth === 0) {
+                                objStart = pos;
+                            }
+                            depth++;
+                        } else if (char === '[') {
+                            depth++;
+                        } else if (char === '}') {
+                            depth--;
+                            // Prüfe ob wir am Ende eines Top-Level-Objekts im Array sind
+                            if (depth === 0 && objStart !== -1) {
+                                const objText = jsonText.slice(objStart, pos + 1);
+                                const allMatch = searchPatterns.every(pattern => pattern.test(objText));
+                                if (allMatch) {
+                                    pos = objStart;
+                                    found = true;
+                                    break;
+                                }
+                                objStart = -1;
+                            }
+                        } else if (char === ']') {
                             depth--;
                             if (depth < 0) break; // Ende des Arrays
                         }
 
-                        // Prüfe ob wir in einem Objekt sind und der Key passt
-                        if (objStart !== -1 && depth === 1) {
-                            const remaining = jsonText.slice(objStart);
-                            if (searchPattern.test(remaining.slice(0, remaining.indexOf('}') + 1))) {
-                                pos = objStart;
-                                break;
-                            }
-                        }
-
-                        if (char === '}' && depth === 0) {
-                            objStart = -1;
-                        }
                         pos++;
                     }
 
@@ -1620,14 +1906,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * Findet einen gemeinsamen Schlüssel in allen Objekten beider Arrays.
-     * Priorisiert 'id', 'name', 'key', dann den ersten gemeinsamen String-Key.
+     * Prüft ob eine Kombination von Keys eindeutige Werte erzeugt.
+     *
+     * @param {Array} objects - Array von Objekten
+     * @param {Array} keys - Array von Key-Namen
+     * @returns {boolean} true wenn die Kombination eindeutig ist
+     */
+    function isKeyComboUnique(objects, keys) {
+        const compositeValues = objects.map(obj =>
+            keys.map(k => String(obj[k] ?? '')).join('|||')
+        );
+        return new Set(compositeValues).size === compositeValues.length;
+    }
+
+    /**
+     * Findet gemeinsame Schlüssel in allen Objekten beider Arrays.
+     * Gibt ein Array von Keys zurück, die zusammen eindeutig identifizieren.
+     * Priorisiert einzelne Keys, kombiniert mehrere wenn nötig.
      *
      * @param {Array} arrA - Array aus JSON A
      * @param {Array} arrB - Array aus JSON B
-     * @returns {string|null} Gefundener Schlüssel oder null
+     * @returns {Array|null} Array von Schlüsseln oder null
      */
-    function findCommonKey(arrA, arrB) {
+    function findCommonKeys(arrA, arrB) {
         const objectsA = arrA.filter(item => typeof item === 'object' && item !== null && !Array.isArray(item));
         const objectsB = arrB.filter(item => typeof item === 'object' && item !== null && !Array.isArray(item));
 
@@ -1638,32 +1939,59 @@ document.addEventListener('DOMContentLoaded', function() {
         const keysInAllB = findCommonKeysInObjects(objectsB);
         const commonKeys = [...keysInAllA].filter(k => keysInAllB.has(k));
 
-        // Priorisiere bestimmte Keys
+        // Filtere auf primitive Keys
+        const primitiveKeys = commonKeys.filter(key => {
+            const valuesA = objectsA.map(obj => obj[key]);
+            const valuesB = objectsB.map(obj => obj[key]);
+            return [...valuesA, ...valuesB].every(v =>
+                typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
+            );
+        });
+
+        if (primitiveKeys.length === 0) return null;
+
+        // 1. Versuche einzelnen Priority-Key
         for (const pk of CONFIG.PRIORITY_KEYS) {
-            if (commonKeys.includes(pk)) {
-                // Stelle sicher dass der Key eindeutige Werte hat (zumindest in einem Array)
-                const valuesA = objectsA.map(obj => obj[pk]);
-                const valuesB = objectsB.map(obj => obj[pk]);
-                const uniqueA = new Set(valuesA).size === valuesA.length;
-                const uniqueB = new Set(valuesB).size === valuesB.length;
-                if (uniqueA || uniqueB) return pk;
+            if (primitiveKeys.includes(pk)) {
+                if (isKeyComboUnique(objectsA, [pk]) || isKeyComboUnique(objectsB, [pk])) {
+                    return [pk];
+                }
             }
         }
 
-        // Fallback: Ersten Key mit primitiven, eindeutigen Werten nehmen
-        for (const key of commonKeys) {
-            const valuesA = objectsA.map(obj => obj[key]);
-            const valuesB = objectsB.map(obj => obj[key]);
-            const allPrimitive = [...valuesA, ...valuesB].every(v =>
-                typeof v === 'string' || typeof v === 'number'
-            );
-            const uniqueA = new Set(valuesA).size === valuesA.length;
-            const uniqueB = new Set(valuesB).size === valuesB.length;
-            if (allPrimitive && (uniqueA || uniqueB)) return key;
+        // 2. Versuche anderen einzelnen Key
+        for (const key of primitiveKeys) {
+            if (isKeyComboUnique(objectsA, [key]) || isKeyComboUnique(objectsB, [key])) {
+                return [key];
+            }
         }
 
-        return null;
+        // 3. Versuche Kombination aus 2 Keys
+        for (let i = 0; i < primitiveKeys.length; i++) {
+            for (let j = i + 1; j < primitiveKeys.length; j++) {
+                const combo = [primitiveKeys[i], primitiveKeys[j]];
+                if (isKeyComboUnique(objectsA, combo) || isKeyComboUnique(objectsB, combo)) {
+                    return combo;
+                }
+            }
+        }
+
+        // 4. Versuche Kombination aus 3 Keys
+        for (let i = 0; i < primitiveKeys.length; i++) {
+            for (let j = i + 1; j < primitiveKeys.length; j++) {
+                for (let k = j + 1; k < primitiveKeys.length; k++) {
+                    const combo = [primitiveKeys[i], primitiveKeys[j], primitiveKeys[k]];
+                    if (isKeyComboUnique(objectsA, combo) || isKeyComboUnique(objectsB, combo)) {
+                        return combo;
+                    }
+                }
+            }
+        }
+
+        // Fallback: Ersten Key zurückgeben (auch wenn nicht eindeutig)
+        return primitiveKeys.length > 0 ? [primitiveKeys[0]] : null;
     }
+
 
     /**
      * Vergleicht zwei Arrays und findet Unterschiede.
@@ -1706,66 +2034,79 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Prüfe manuelle Key-Auswahl
             const manualSetting = manualArrayKeys.get(path);
-            let commonKey = null;
+            let commonKeys = null;
 
             if (manualSetting) {
                 if (manualSetting.mode === 'none') {
                     // Erzwinge Index-basierten Vergleich - skip to MODUS 2
-                    commonKey = null;
-                } else if (manualSetting.mode === 'manual') {
-                    // Manuell gewählter Key
-                    commonKey = manualSetting.key;
+                    commonKeys = null;
+                } else if (manualSetting.mode === 'manual' && manualSetting.keys) {
+                    // Manuell gewählte Keys (Array)
+                    commonKeys = manualSetting.keys;
                 }
             } else {
-                // Auto-Modus: findCommonKey() verwenden
-                commonKey = findCommonKey(arrA, arrB);
+                // Auto-Modus: findCommonKeys() verwenden
+                commonKeys = findCommonKeys(arrA, arrB);
             }
 
-            if (commonKey) {
-                // MODUS 1: KEY-BASIERTER VERGLEICH
+            if (commonKeys && commonKeys.length > 0) {
+                // MODUS 1: KEY-BASIERTER VERGLEICH (mit zusammengesetzten Keys)
                 const objectsA = arrA.filter(item => typeof item === 'object' && item !== null && !Array.isArray(item));
                 const objectsB = arrB.filter(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+
+                // Hilfsfunktion: Zusammengesetzten Key-String aus Objekt erstellen
+                const getCompositeKey = (obj) => {
+                    return commonKeys.map(k => String(obj[k] ?? '')).join('|||');
+                };
+
+                // Hilfsfunktion: Pfad-Segment für zusammengesetzte Keys erstellen
+                const getKeyPathSegment = (obj) => {
+                    return commonKeys.map(k => `${k}=${obj[k]}`).join(',');
+                };
 
                 // Erstelle Maps für schnellen Zugriff
                 const mapA = new Map();
                 const mapB = new Map();
 
                 objectsA.forEach((obj, idx) => {
-                    const keyValue = obj[commonKey];
-                    if (keyValue !== undefined) {
-                        mapA.set(String(keyValue), { obj, idx });
+                    const compositeKey = getCompositeKey(obj);
+                    // Nur hinzufügen wenn alle Keys vorhanden sind
+                    const allKeysPresent = commonKeys.every(k => obj[k] !== undefined);
+                    if (allKeysPresent) {
+                        mapA.set(compositeKey, { obj, idx });
                     }
                 });
 
                 objectsB.forEach((obj, idx) => {
-                    const keyValue = obj[commonKey];
-                    if (keyValue !== undefined) {
-                        mapB.set(String(keyValue), { obj, idx });
+                    const compositeKey = getCompositeKey(obj);
+                    const allKeysPresent = commonKeys.every(k => obj[k] !== undefined);
+                    if (allKeysPresent) {
+                        mapB.set(compositeKey, { obj, idx });
                     }
                 });
 
-                // Alle eindeutigen Key-Werte sammeln
+                // Alle eindeutigen zusammengesetzten Key-Werte sammeln
                 const allKeyValues = new Set([...mapA.keys(), ...mapB.keys()]);
 
-                for (const keyValue of allKeyValues) {
-                    const entryA = mapA.get(keyValue);
-                    const entryB = mapB.get(keyValue);
+                for (const compositeKey of allKeyValues) {
+                    const entryA = mapA.get(compositeKey);
+                    const entryB = mapB.get(compositeKey);
 
                     if (!entryA) {
                         // Objekt nur in B vorhanden
                         if (isPropertySelected(path)) {
-                            const itemPath = `${path}[${commonKey}=${keyValue}]`;
+                            const itemPath = `${path}[${getKeyPathSegment(entryB.obj)}]`;
                             differences.push({ type: 'added', path: itemPath, valueB: entryB.obj });
                         }
                     } else if (!entryB) {
                         // Objekt nur in A vorhanden
                         if (isPropertySelected(path)) {
-                            const itemPath = `${path}[${commonKey}=${keyValue}]`;
+                            const itemPath = `${path}[${getKeyPathSegment(entryA.obj)}]`;
                             differences.push({ type: 'removed', path: itemPath, valueA: entryA.obj });
                         }
                     } else {
                         // Beide vorhanden: rekursiv vergleichen
-                        const itemPath = `${path}[${commonKey}=${keyValue}]`;
+                        const itemPath = `${path}[${getKeyPathSegment(entryA.obj)}]`;
                         const nestedDiffs = findDifferences(entryA.obj, entryB.obj, itemPath);
                         differences.push(...nestedDiffs);
                     }
