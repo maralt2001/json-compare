@@ -1304,7 +1304,7 @@ button.array-key-toggle:hover,
 .diff-compare {
     display: flex;
     gap: 1em;
-    overflow: hidden;
+    overflow: auto;
     max-height: 500px;
     transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.3s ease;
     opacity: 1;
@@ -1314,6 +1314,7 @@ button.array-key-toggle:hover,
     max-height: 0;
     opacity: 0;
     margin-bottom: -0.5em;
+    overflow: hidden;
 }
 
 .diff-side {
