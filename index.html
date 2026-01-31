@@ -62,6 +62,144 @@
       <button id="exampleBtn" class="styled-btn styled-btn-gray">
         <span class="styled-btn-inner">Beispiel laden</span>
       </button>
+      <button id="helpBtn" class="styled-btn styled-btn-yellow">
+        <span class="styled-btn-inner">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Hilfe
+        </span>
+      </button>
+    </div>
+
+    <div id="helpModal" class="help-modal">
+      <div class="help-modal-content">
+        <div class="help-modal-header">
+          <h2>Hilfe</h2>
+          <button id="helpCloseBtn" class="help-modal-close">&times;</button>
+        </div>
+        <div id="helpModalBody" class="help-modal-body">
+          <h1>Compare My JSON</h1>
+          <p>Eine clientseitige Webanwendung zum Vergleichen von JSON-Daten. Keine Server-Komponente erforderlich - l&auml;uft vollst&auml;ndig im Browser.</p>
+
+          <h2>Features</h2>
+
+          <h3>JSON-Eingabe</h3>
+          <ul>
+            <li><strong>Zwei Editoren</strong> f&uuml;r JSON A und JSON B mit Syntax-Highlighting</li>
+            <li><strong>Datei-Upload</strong> per Button oder Drag &amp; Drop</li>
+            <li><strong>JSON formatieren</strong> - formatiert einzelne JSONs mit Einr&uuml;ckung</li>
+            <li><strong>Kopieren</strong> des Inhalts in die Zwischenablage</li>
+            <li><strong>Leeren</strong> einzelner Textareas</li>
+            <li><strong>Vollbild-Modus</strong> f&uuml;r komplexere JSON-Strukturen</li>
+            <li><strong>Aliase</strong> f&uuml;r die JSON-Quellen (z.B. "Production", "Staging")</li>
+            <li><strong>Beispieldaten</strong> zum schnellen Testen</li>
+          </ul>
+
+          <h3>JSON-Normalisierung</h3>
+          <ul>
+            <li><strong>A ist Master</strong> - sortiert B nach der Key-Reihenfolge von A</li>
+            <li><strong>B ist Master</strong> - sortiert A nach der Key-Reihenfolge von B</li>
+            <li><strong>Alphabetisch</strong> - sortiert beide JSONs alphabetisch nach Keys</li>
+            <li>Erleichtert den visuellen Vergleich bei unterschiedlicher Key-Reihenfolge</li>
+          </ul>
+
+          <h3>Property-Vorauswahl (Pre-Comparison Selection)</h3>
+          <ul>
+            <li><strong>Properties scannen</strong> extrahiert alle Felder aus beiden JSONs</li>
+            <li><strong>Multi-Select Dropdown</strong> zur Auswahl der zu vergleichenden Properties</li>
+            <li><strong>Farbkodierung</strong> zeigt Herkunft:
+              <ul>
+                <li>Cyan: in beiden JSONs vorhanden</li>
+                <li>Rot: nur in A</li>
+                <li>Gr&uuml;n: nur in B</li>
+              </ul>
+            </li>
+            <li><strong>Alle ausw&auml;hlen / Alle abw&auml;hlen</strong> f&uuml;r schnelle Selektion</li>
+            <li><strong>Unbegrenzte Tiefe</strong> - funktioniert mit beliebig verschachtelten Strukturen</li>
+            <li><strong>Einr&uuml;ckung</strong> visualisiert die Verschachtelungsebene</li>
+            <li><strong>Array-Key-Auswahl</strong> - manuelle Wahl des Vergleichs-Keys f&uuml;r Arrays (Auto, Index-basiert, oder spezifischer Key)</li>
+          </ul>
+
+          <h3>Vergleich</h3>
+          <ul>
+            <li><strong>Struktureller Vergleich</strong> von JSON-Objekten</li>
+            <li><strong>Array-Vergleich</strong> nach Vorhandensein (nicht nach Position)</li>
+            <li><strong>Rekursiver Vergleich</strong> verschachtelter Objekte</li>
+            <li><strong>Selektiver Vergleich</strong> nur ausgew&auml;hlter Properties</li>
+            <li><strong>Drei Unterschiedstypen</strong>:
+              <ul>
+                <li>Nur in A (rot)</li>
+                <li>Nur in B (gr&uuml;n)</li>
+                <li>Unterschiedliche Werte (cyan)</li>
+              </ul>
+            </li>
+          </ul>
+
+          <h3>Key-basierter Array-Vergleich</h3>
+          <p>Bei Arrays von Objekten k&ouml;nnen ein oder mehrere Properties als <strong>Identifier-Keys</strong> definiert werden, um Objekte eindeutig zu identifizieren - unabh&auml;ngig von ihrer Position im Array.</p>
+
+          <h4>Vergleichs-Modi</h4>
+          <table>
+            <thead>
+              <tr><th>Modus</th><th>Beschreibung</th><th>Pfad-Format</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Auto</strong></td><td>Automatische Key-Erkennung (id, name, etc.)</td><td><code>array[key=value]</code></td></tr>
+              <tr><td><strong>Index</strong></td><td>Position-basierter Vergleich</td><td><code>array[0]</code>, <code>array[1]</code></td></tr>
+              <tr><td><strong>Manuell</strong></td><td>Ein oder mehrere Keys ausw&auml;hlen</td><td><code>array[key1=val1,key2=val2]</code></td></tr>
+            </tbody>
+          </table>
+
+          <h4>Composite Keys (Zusammengesetzte Schl&uuml;ssel)</h4>
+          <p>Wenn ein einzelner Key nicht eindeutig ist, k&ouml;nnen mehrere Keys kombiniert werden:</p>
+          <p><strong>Beispiel:</strong> Eine Firma hat mehrere Mitarbeiter pro Abteilung. <code>abteilung</code> allein ist nicht eindeutig, aber <code>abteilung</code> + <code>name</code> zusammen identifiziert jeden Mitarbeiter.</p>
+
+          <h4>Key-Auswahl im UI</h4>
+          <ol>
+            <li><strong>Properties scannen</strong> klicken</li>
+            <li>Beim Array (z.B. <code>permission</code>) auf den <strong>Key-Button</strong> klicken</li>
+            <li><strong>"Keys w&auml;hlen"</strong> ausw&auml;hlen und die gew&uuml;nschten Keys aktivieren</li>
+            <li>Key-Properties werden markiert und aus dem Vergleich ausgeschlossen (da sie zur Identifikation dienen, nicht zum Vergleich)</li>
+          </ol>
+
+          <h3>Ergebnis-Anzeige</h3>
+          <ul>
+            <li><strong>Auf-/zuklappbare</strong> Unterschiede mit Datei-Icon und A/B-Kennzeichnung</li>
+            <li><strong>Inline-Diff-Highlighting</strong> - markiert Unterschiede direkt in den Editoren (Toggle per Klick)</li>
+            <li><strong>Filter</strong> nach Unterschiedstyp (Alle, Nur in A, Nur in B, Unterschiedlich)</li>
+            <li><strong>Property-Filter</strong> zum Suchen nach bestimmten Feldnamen</li>
+            <li><strong>Counter</strong> zeigen Anzahl pro Kategorie</li>
+            <li><strong>Alle auf-/zuklappen</strong> Button</li>
+          </ul>
+
+          <h3>Export</h3>
+          <ul>
+            <li><strong>Textdatei-Export</strong> der Unterschiede</li>
+            <li>Enth&auml;lt Datum, Aliase und alle Unterschiede gruppiert nach Typ</li>
+          </ul>
+
+          <h2>Verwendung</h2>
+          <ol>
+            <li><code>index.html</code> im Browser &ouml;ffnen</li>
+            <li>JSON-Daten in die Textfelder eingeben oder Dateien laden</li>
+            <li>Optional: Aliase f&uuml;r die Quellen eingeben</li>
+            <li>Optional: "Properties scannen" klicken und gew&uuml;nschte Properties ausw&auml;hlen</li>
+            <li>"A &#8644; B Vergleichen" klicken</li>
+            <li>Unterschiede analysieren, filtern und ggf. exportieren</li>
+          </ol>
+
+          <h3>Workflow mit Property-Vorauswahl</h3>
+          <pre><code>JSON eingeben &rarr; Properties scannen &rarr; Properties ausw&auml;hlen &rarr; Vergleichen</code></pre>
+          <p>Dies ist besonders n&uuml;tzlich bei gro&szlig;en JSONs, wenn nur bestimmte Felder relevant sind.</p>
+
+          <h2>Technologie</h2>
+          <ul>
+            <li>Reines HTML, CSS und JavaScript</li>
+            <li>Kein Node.js oder Build-Prozess erforderlich</li>
+            <li>Dark Mode mit Cyan-Akzentfarbe (Tailwind-inspiriert)</li>
+            <li>Responsive Design</li>
+          </ul>
+        </div>
+      </div>
     </div>
 
     <div class="content">

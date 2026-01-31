@@ -2338,4 +2338,29 @@ document.addEventListener('DOMContentLoaded', function() {
             showError(`JSON ${label} ist ungültig: ` + e.message);
         }
     }
+
+    // Help Modal
+    const helpBtn = document.getElementById('helpBtn');
+    const helpModal = document.getElementById('helpModal');
+    const helpCloseBtn = document.getElementById('helpCloseBtn');
+
+    helpBtn.addEventListener('click', function() {
+        helpModal.classList.add('active');
+    });
+
+    helpCloseBtn.addEventListener('click', function() {
+        helpModal.classList.remove('active');
+    });
+
+    helpModal.addEventListener('click', function(e) {
+        if (e.target === helpModal) {
+            helpModal.classList.remove('active');
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && helpModal.classList.contains('active')) {
+            helpModal.classList.remove('active');
+        }
+    });
 });
