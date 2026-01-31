@@ -1014,6 +1014,23 @@ button.array-key-toggle:hover,
     box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.4);
 }
 
+/* Pre-Filter Line Number Icons */
+.line-filtered {
+    color: #f97316 !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.line-filter-icon {
+    flex-shrink: 0;
+}
+
+/* Pre-Filter Button Icon orange */
+.pre-filter-icon {
+    stroke: #f97316;
+}
+
 .result-section {
     padding: 1.5em;
     margin: 0 auto;
@@ -1593,6 +1610,179 @@ button.array-key-toggle:hover,
     margin: 1em 0;
 }
 
+/* Pre-Filter Badge */
+.pre-filter-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--violet-500);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-left: 0.3em;
+}
+
+/* Pre-Filter Panel */
+.pre-filter-panel {
+    display: none;
+    padding: 1.25em 1.5em;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.pre-filter-panel.open {
+    display: block;
+}
+
+.pre-filter-header h3 {
+    color: var(--violet-400);
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 0.75em 0;
+}
+
+.pre-filter-conditions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    margin-bottom: 1em;
+}
+
+.pre-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    flex-wrap: wrap;
+}
+
+.pre-filter-select,
+.pre-filter-input {
+    padding: 0.45em 0.7em;
+    font-size: 0.8rem;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--gray-700);
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+.pre-filter-select:focus,
+.pre-filter-input:focus {
+    outline: none;
+    border-color: var(--violet-400);
+    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2);
+}
+
+.pre-filter-select option {
+    background: var(--gray-800);
+    color: var(--text-primary);
+}
+
+.pre-filter-select {
+    min-width: 140px;
+    max-width: 220px;
+    cursor: pointer;
+}
+
+.pre-filter-input {
+    min-width: 100px;
+    flex: 1;
+    max-width: 200px;
+}
+
+.diff-filter-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    padding: 0.15em 0.55em;
+    margin-left: 0.5em;
+    border-radius: 9px;
+    background: var(--violet-500);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    vertical-align: middle;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.diff-line.diff-pre-filtered {
+    background-image: linear-gradient(to right, rgba(139, 92, 246, 0.15), transparent 40%);
+    border-right: 3px solid var(--violet-500);
+}
+
+.pre-filter-and-label {
+    color: var(--violet-400);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: left;
+    padding: 0.1em 0;
+    letter-spacing: 0.05em;
+}
+
+.pre-filter-delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--gray-700);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    transition: all 0.2s ease;
+}
+
+.pre-filter-delete-btn:hover {
+    background: var(--removed-color);
+    border-color: var(--removed-color);
+    color: white;
+}
+
+.pre-filter-warning {
+    padding: 0.5em 0.75em;
+    margin-bottom: 0.5em;
+    border-radius: var(--radius-sm);
+    background: rgba(249, 115, 22, 0.12);
+    border-left: 3px solid #f97316;
+    color: #f97316;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.pre-filter-actions {
+    display: flex;
+    gap: 0.5em;
+    align-items: center;
+}
+
+/* Glow effect when filters are active */
+.styled-btn-violet.has-active-filters {
+    animation: filterGlow 2s ease-in-out infinite;
+}
+
+@keyframes filterGlow {
+    0%, 100% {
+        box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 16px rgba(139, 92, 246, 0.7);
+    }
+}
+
 @media (max-width: 768px) {
     .content {
         flex-direction: column;
@@ -1605,5 +1795,16 @@ button.array-key-toggle:hover,
 
     .controls {
         flex-wrap: wrap;
+    }
+
+    .pre-filter-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pre-filter-select,
+    .pre-filter-input {
+        max-width: 100%;
+        min-width: 0;
     }
 }

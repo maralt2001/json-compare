@@ -1,4 +1,4 @@
-const CACHE_NAME = 'json-compare-v3';
+const CACHE_NAME = 'json-compare-v5';
 const ASSETS = [
   './',
   './index.html',

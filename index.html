@@ -40,6 +40,13 @@
           <div class="prop-selector-list" id="propSelectorList"></div>
         </div>
       </div>
+      <button id="preFilterBtn" class="styled-btn styled-btn-violet" disabled>
+        <span class="styled-btn-inner">
+          <svg class="pre-filter-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Pre-Filter
+          <span id="preFilterBadge" class="pre-filter-badge" style="display:none;">0</span>
+        </span>
+      </button>
       <div class="normalize-selector">
         <button id="normalizeBtn" class="styled-btn styled-btn-primary">
           <span class="styled-btn-inner">
@@ -199,6 +206,27 @@
             <li>Responsive Design</li>
           </ul>
         </div>
+      </div>
+    </div>
+
+    <div id="preFilterPanel" class="pre-filter-panel">
+      <div class="pre-filter-header">
+        <h3>Pre-Filter: Daten vor dem Vergleich filtern</h3>
+      </div>
+      <div id="preFilterConditions" class="pre-filter-conditions">
+        <!-- Dynamisch gerenderte Condition-Rows -->
+      </div>
+      <div id="preFilterWarning" class="pre-filter-warning" style="display:none;"></div>
+      <div class="pre-filter-actions">
+        <button id="addConditionBtn" class="styled-btn styled-btn-violet styled-btn-sm">
+          <span class="styled-btn-inner">+ Bedingung</span>
+        </button>
+        <button id="applyFilterBtn" class="styled-btn styled-btn-primary styled-btn-sm">
+          <span class="styled-btn-inner">Anwenden</span>
+        </button>
+        <button id="resetFilterBtn" class="styled-btn styled-btn-gray styled-btn-sm">
+          <span class="styled-btn-inner">Zurücksetzen</span>
+        </button>
       </div>
     </div>
 

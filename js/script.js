@@ -29,6 +29,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const normalizeOptions = document.querySelectorAll('.normalize-option');
     const lineNumbersA = document.getElementById('lineNumbersA');
     const lineNumbersB = document.getElementById('lineNumbersB');
+    const preFilterBtn = document.getElementById('preFilterBtn');
+    const preFilterBadge = document.getElementById('preFilterBadge');
+    const preFilterPanel = document.getElementById('preFilterPanel');
+    const preFilterConditionsEl = document.getElementById('preFilterConditions');
+    const addConditionBtn = document.getElementById('addConditionBtn');
+    const applyFilterBtn = document.getElementById('applyFilterBtn');
+    const resetFilterBtn = document.getElementById('resetFilterBtn');
+    const preFilterWarning = document.getElementById('preFilterWarning');
 
     // ========================================================================
     // CONFIGURATION
@@ -58,6 +66,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Array Key Handling
     let manualArrayKeys = new Map();   // path -> { mode: 'auto'|'manual'|'none', key: string|null }
     let arrayKeyOptions = new Map();   // path -> Set<string>
+
+    // Pre-Filter State
+    let preFilterConditions = [];    // [{path, field, operator, value}, ...]
+    let activePreFilters = null;     // null = keine Filter aktiv
+    let preFilterFieldOptions = new Map(); // path -> Set<string> (alle Felder, permissiv)
 
     // Inline Diff Highlighting
     let diffHighlightsA = [];  // Array von { start, end } für Inline-Diff in JSON A
@@ -283,10 +296,19 @@ document.addEventListener('DOMContentLoaded', function() {
                </button>`
             : '';
 
+        const filtered = isPathPreFiltered(diff.path);
+        if (filtered) {
+            line.classList.add('diff-pre-filtered');
+        }
+
+        const filterBadge = filtered
+            ? '<span class="diff-filter-badge" title="Pre-Filter aktiv auf diesem Pfad"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> gefiltert</span>'
+            : '';
+
         line.innerHTML = `
             <div class="diff-header">
                 <span class="diff-toggle"></span>
-                <span class="diff-path">${icon} ${diff.path}</span>
+                <span class="diff-path">${icon} ${diff.path} ${filterBadge}</span>
                 ${hint ? `<span class="diff-hint">${hint}</span>` : ''}
                 ${showBtn}
             </div>
@@ -397,6 +419,14 @@ document.addEventListener('DOMContentLoaded', function() {
         propSelectorBtn.querySelector('.prop-selector-text').textContent = 'Properties auswählen';
         propSelectorList.innerHTML = '';
         propSelectorDropdown.classList.remove('open');
+
+        // Pre-Filter zurücksetzen
+        preFilterConditions = [];
+        activePreFilters = null;
+        preFilterFieldOptions = new Map();
+        preFilterBtn.disabled = true;
+        preFilterPanel.classList.remove('open');
+        updatePreFilterBadge();
     }
 
     /**
@@ -839,6 +869,409 @@ document.addEventListener('DOMContentLoaded', function() {
         return container;
     }
 
+    // ========================================================================
+    // PRE-FILTER FUNCTIONS
+    // ========================================================================
+
+    function collectPreFilterOptions(obj, path, optionsMap) {
+        if (obj === null || typeof obj !== 'object') return;
+
+        if (Array.isArray(obj)) {
+            const objects = obj.filter(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+            if (objects.length > 0) {
+                // Sammle ALLE Keys aus ALLEN Objekten (Union)
+                const allKeys = new Set();
+                objects.forEach(item => {
+                    Object.keys(item).forEach(k => allKeys.add(k));
+                });
+                if (allKeys.size > 0) {
+                    const existing = optionsMap.get(path) || new Set();
+                    allKeys.forEach(k => existing.add(k));
+                    optionsMap.set(path, existing);
+                }
+            }
+            obj.forEach(item => {
+                if (typeof item === 'object' && item !== null) {
+                    collectPreFilterOptions(item, path, optionsMap);
+                }
+            });
+        } else {
+            for (const key of Object.keys(obj)) {
+                const currentPath = path ? `${path}.${key}` : key;
+                const value = obj[key];
+                if (typeof value === 'object' && value !== null) {
+                    collectPreFilterOptions(value, currentPath, optionsMap);
+                }
+            }
+        }
+    }
+
+    function renderPreFilterConditions() {
+        preFilterConditionsEl.innerHTML = '';
+        const paths = Array.from(preFilterFieldOptions.keys()).sort();
+
+        if (paths.length === 0) {
+            const hint = document.createElement('div');
+            hint.style.cssText = 'color: var(--text-secondary); font-size: 0.85rem; padding: 0.5em 0;';
+            hint.textContent = 'Keine filterbaren Arrays gefunden. Pre-Filter benötigt Arrays mit Objekten (z.B. [{name: "Max", abteilung: "IT"}, ...]).';
+            preFilterConditionsEl.appendChild(hint);
+            return;
+        }
+
+        preFilterConditions.forEach((cond, index) => {
+            if (index > 0) {
+                const andLabel = document.createElement('div');
+                andLabel.className = 'pre-filter-and-label';
+                andLabel.textContent = 'UND';
+                preFilterConditionsEl.appendChild(andLabel);
+            }
+
+            const row = document.createElement('div');
+            row.className = 'pre-filter-row';
+
+            // Path dropdown
+            const pathSelect = document.createElement('select');
+            pathSelect.className = 'pre-filter-select';
+            pathSelect.innerHTML = '<option value="">-- Pfad --</option>' +
+                paths.map(p => `<option value="${p}"${cond.path === p ? ' selected' : ''}>${p || '(Root-Array)'}</option>`).join('');
+            pathSelect.addEventListener('change', () => {
+                preFilterConditions[index].path = pathSelect.value;
+                preFilterConditions[index].field = '';
+                renderPreFilterConditions();
+            });
+
+            // Field dropdown
+            const fieldSelect = document.createElement('select');
+            fieldSelect.className = 'pre-filter-select';
+            populateFieldSelect(fieldSelect, cond.path, cond.field);
+            fieldSelect.addEventListener('change', () => {
+                preFilterConditions[index].field = fieldSelect.value;
+            });
+
+            // Operator dropdown
+            const opSelect = document.createElement('select');
+            opSelect.className = 'pre-filter-select';
+            opSelect.style.minWidth = '80px';
+            opSelect.style.maxWidth = '100px';
+            const operators = ['==', '!=', '>', '<', '>=', '<=', 'contains'];
+            opSelect.innerHTML = operators.map(op =>
+                `<option value="${op}"${cond.operator === op ? ' selected' : ''}>${op}</option>`
+            ).join('');
+            opSelect.addEventListener('change', () => {
+                preFilterConditions[index].operator = opSelect.value;
+            });
+
+            // Value input
+            const valInput = document.createElement('input');
+            valInput.type = 'text';
+            valInput.className = 'pre-filter-input';
+            valInput.placeholder = 'Wert...';
+            valInput.value = cond.value || '';
+            valInput.addEventListener('input', () => {
+                preFilterConditions[index].value = valInput.value;
+            });
+
+            // Delete button
+            const delBtn = document.createElement('button');
+            delBtn.className = 'pre-filter-delete-btn';
+            delBtn.innerHTML = '&times;';
+            delBtn.title = 'Bedingung entfernen';
+            delBtn.addEventListener('click', () => {
+                preFilterConditions.splice(index, 1);
+                renderPreFilterConditions();
+            });
+
+            row.appendChild(pathSelect);
+            row.appendChild(fieldSelect);
+            row.appendChild(opSelect);
+            row.appendChild(valInput);
+            row.appendChild(delBtn);
+            preFilterConditionsEl.appendChild(row);
+        });
+    }
+
+    function populateFieldSelect(el, path, selected) {
+        const keys = preFilterFieldOptions.get(path);
+        el.innerHTML = '<option value="">-- Feld --</option>';
+        if (keys) {
+            Array.from(keys).sort().forEach(k => {
+                const opt = document.createElement('option');
+                opt.value = k;
+                opt.textContent = k;
+                if (k === selected) opt.selected = true;
+                el.appendChild(opt);
+            });
+        }
+    }
+
+    function matchesAllConditions(item, conditions) {
+        return conditions.every(cond => {
+            if (!cond.field || cond.value === '' || cond.value === undefined) return true;
+            const val = item[cond.field];
+            const condVal = cond.value;
+            const strVal = val !== undefined && val !== null ? String(val) : '';
+
+            switch (cond.operator) {
+                case '==': return strVal === condVal;
+                case '!=': return strVal !== condVal;
+                case '>': return parseFloat(strVal) > parseFloat(condVal);
+                case '<': return parseFloat(strVal) < parseFloat(condVal);
+                case '>=': return parseFloat(strVal) >= parseFloat(condVal);
+                case '<=': return parseFloat(strVal) <= parseFloat(condVal);
+                case 'contains': return strVal.toLowerCase().includes(condVal.toLowerCase());
+                default: return true;
+            }
+        });
+    }
+
+    function filterObjectAtPath(obj, parts, depth, conditions) {
+        if (obj === null || obj === undefined) return obj;
+
+        if (depth >= parts.length) {
+            // We've reached the target — it should be an array
+            if (Array.isArray(obj)) {
+                return obj.filter(item =>
+                    typeof item === 'object' && item !== null
+                        ? matchesAllConditions(item, conditions)
+                        : true
+                );
+            }
+            return obj;
+        }
+
+        const key = parts[depth];
+
+        if (Array.isArray(obj)) {
+            return obj.map(item => filterObjectAtPath(item, parts, depth, conditions));
+        }
+
+        if (typeof obj === 'object' && obj !== null && key in obj) {
+            const clone = { ...obj };
+            clone[key] = filterObjectAtPath(obj[key], parts, depth + 1, conditions);
+            return clone;
+        }
+
+        return obj;
+    }
+
+    function filterAtPath(obj, path, conditions) {
+        if (path === '') {
+            // Root-level array
+            if (Array.isArray(obj)) {
+                return obj.filter(item =>
+                    typeof item === 'object' && item !== null
+                        ? matchesAllConditions(item, conditions)
+                        : true
+                );
+            }
+            return obj;
+        }
+
+        const parts = path.split('.');
+        return filterObjectAtPath(obj, parts, 0, conditions);
+    }
+
+    function applyPreFilters(jsonA, jsonB) {
+        if (!activePreFilters || activePreFilters.length === 0) {
+            return { filteredA: jsonA, filteredB: jsonB };
+        }
+
+        let filteredA = JSON.parse(JSON.stringify(jsonA));
+        let filteredB = JSON.parse(JSON.stringify(jsonB));
+
+        // Group conditions by path
+        const conditionsByPath = new Map();
+        activePreFilters.forEach(cond => {
+            if (!conditionsByPath.has(cond.path)) {
+                conditionsByPath.set(cond.path, []);
+            }
+            conditionsByPath.get(cond.path).push(cond);
+        });
+
+        conditionsByPath.forEach((conditions, path) => {
+            filteredA = filterAtPath(filteredA, path, conditions);
+            filteredB = filterAtPath(filteredB, path, conditions);
+        });
+
+        return { filteredA, filteredB };
+    }
+
+    function findPreFilterLines(jsonText) {
+        if (!activePreFilters || activePreFilters.length === 0) return new Set();
+        const lineSet = new Set();
+
+        try {
+            const parsed = JSON.parse(jsonText);
+            const conditionsByPath = new Map();
+            activePreFilters.forEach(f => {
+                if (!conditionsByPath.has(f.path)) conditionsByPath.set(f.path, []);
+                conditionsByPath.get(f.path).push(f);
+            });
+
+            conditionsByPath.forEach((conditions, path) => {
+                let arr;
+                if (path === '') {
+                    arr = parsed;
+                } else {
+                    arr = path.split('.').reduce((obj, key) => {
+                        if (obj && typeof obj === 'object') return obj[key];
+                        return undefined;
+                    }, parsed);
+                }
+                if (!Array.isArray(arr)) return;
+
+                arr.forEach(item => {
+                    if (typeof item !== 'object' || item === null) return;
+                    if (!matchesAllConditions(item, conditions)) return;
+
+                    // Suche das matchende Objekt im Text via erste Bedingung als Anker
+                    const firstCond = conditions[0];
+                    const searchPattern = `"${firstCond.field}"`;
+                    let searchFrom = 0;
+
+                    while (searchFrom < jsonText.length) {
+                        const fieldPos = jsonText.indexOf(searchPattern, searchFrom);
+                        if (fieldPos === -1) break;
+
+                        const afterField = jsonText.slice(fieldPos + searchPattern.length).match(/^\s*:\s*/);
+                        if (!afterField) { searchFrom = fieldPos + 1; continue; }
+
+                        const valueStart = fieldPos + searchPattern.length + afterField[0].length;
+                        const valueStr = jsonText.slice(valueStart, valueStart + 200);
+
+                        let actualValue = '';
+                        if (valueStr.startsWith('"')) {
+                            const endQuote = valueStr.indexOf('"', 1);
+                            if (endQuote !== -1) actualValue = valueStr.slice(1, endQuote);
+                        } else {
+                            const m = valueStr.match(/^([^\s,}\]]+)/);
+                            if (m) actualValue = m[1];
+                        }
+
+                        let matches = false;
+                        switch (firstCond.operator) {
+                            case '==': matches = actualValue === firstCond.value; break;
+                            case '!=': matches = actualValue !== firstCond.value; break;
+                            case '>': matches = parseFloat(actualValue) > parseFloat(firstCond.value); break;
+                            case '<': matches = parseFloat(actualValue) < parseFloat(firstCond.value); break;
+                            case '>=': matches = parseFloat(actualValue) >= parseFloat(firstCond.value); break;
+                            case '<=': matches = parseFloat(actualValue) <= parseFloat(firstCond.value); break;
+                            case 'contains': matches = actualValue.toLowerCase().includes(firstCond.value.toLowerCase()); break;
+                            default: matches = actualValue === firstCond.value;
+                        }
+
+                        if (matches) {
+                            // Finde umgebendes Objekt { ... }
+                            let braceCount = 0;
+                            let objStart = fieldPos;
+                            for (let i = fieldPos - 1; i >= 0; i--) {
+                                if (jsonText[i] === '}') braceCount++;
+                                if (jsonText[i] === '{') {
+                                    if (braceCount === 0) { objStart = i; break; }
+                                    braceCount--;
+                                }
+                            }
+                            braceCount = 0;
+                            let objEnd = fieldPos;
+                            for (let i = objStart; i < jsonText.length; i++) {
+                                if (jsonText[i] === '{') braceCount++;
+                                if (jsonText[i] === '}') {
+                                    braceCount--;
+                                    if (braceCount === 0) { objEnd = i + 1; break; }
+                                }
+                            }
+
+                            const startLine = jsonText.slice(0, objStart).split('\n').length;
+                            const endLine = jsonText.slice(0, objEnd).split('\n').length;
+                            for (let l = startLine; l <= endLine; l++) {
+                                lineSet.add(l);
+                            }
+                        }
+                        searchFrom = fieldPos + 1;
+                    }
+                });
+            });
+        } catch (e) {
+            // ignore
+        }
+        return lineSet;
+    }
+
+    function isPathPreFiltered(diffPath) {
+        if (!activePreFilters || activePreFilters.length === 0) return false;
+        // Normalisiere: Entferne Array-Notationen für den Vergleich
+        const normalized = diffPath.replace(/\[[^\]]+\]/g, '');
+        return activePreFilters.some(f => {
+            if (f.path === '') return true; // Root-Array-Filter betrifft alles
+            return normalized === f.path || normalized.startsWith(f.path + '.');
+        });
+    }
+
+    function updatePreFilterLineMarkers() {
+        const filterLinesA = findPreFilterLines(jsonATextarea.value);
+        const filterLinesB = findPreFilterLines(jsonBTextarea.value);
+        updateLineNumbers(jsonATextarea.value, lineNumbersA, filterLinesA);
+        updateLineNumbers(jsonBTextarea.value, lineNumbersB, filterLinesB);
+
+        // Warnung anzeigen wenn Filter aktiv aber keine Treffer
+        if (activePreFilters && activePreFilters.length > 0 && filterLinesA.size === 0 && filterLinesB.size === 0) {
+            preFilterWarning.textContent = 'Kein Objekt erfüllt alle Bedingungen gleichzeitig (UND-Verknüpfung). Filter hat keine Treffer.';
+            preFilterWarning.style.display = '';
+        } else {
+            preFilterWarning.style.display = 'none';
+        }
+    }
+
+    function updatePreFilterBadge() {
+        const count = activePreFilters ? activePreFilters.length : 0;
+        if (count > 0) {
+            preFilterBadge.textContent = count;
+            preFilterBadge.style.display = '';
+            preFilterBtn.classList.add('has-active-filters');
+        } else {
+            preFilterBadge.style.display = 'none';
+            preFilterBtn.classList.remove('has-active-filters');
+        }
+    }
+
+    // Pre-Filter Event Listeners
+    preFilterBtn.addEventListener('click', () => {
+        preFilterPanel.classList.toggle('open');
+        if (preFilterPanel.classList.contains('open') && preFilterConditions.length === 0) {
+            preFilterConditions.push({ path: '', field: '', operator: '==', value: '' });
+            renderPreFilterConditions();
+        }
+    });
+
+    addConditionBtn.addEventListener('click', () => {
+        preFilterConditions.push({ path: '', field: '', operator: '==', value: '' });
+        renderPreFilterConditions();
+    });
+
+    applyFilterBtn.addEventListener('click', () => {
+        // Only apply complete conditions
+        const validConditions = preFilterConditions.filter(
+            c => c.path !== undefined && c.field && c.value !== '' && c.value !== undefined
+        );
+        activePreFilters = validConditions.length > 0 ? validConditions : null;
+        updatePreFilterBadge();
+        updatePreFilterLineMarkers();
+
+        // Panel nur schließen wenn keine Warnung
+        if (preFilterWarning.style.display === 'none') {
+            preFilterPanel.classList.remove('open');
+        }
+    });
+
+    resetFilterBtn.addEventListener('click', () => {
+        preFilterConditions = [];
+        activePreFilters = null;
+        preFilterWarning.style.display = 'none';
+        updatePreFilterBadge();
+        updatePreFilterLineMarkers();
+        renderPreFilterConditions();
+    });
+
     function scanProperties() {
         const jsonAText = jsonATextarea.value.trim();
         const jsonBText = jsonBTextarea.value.trim();
@@ -898,6 +1331,17 @@ document.addEventListener('DOMContentLoaded', function() {
         renderPropertySelector();
         propSelectorBtn.disabled = false;
         updatePropertySelectorButtonText();
+
+        // Pre-Filter: Feld-Optionen sammeln (permissiv, alle Keys aus allen Objekten)
+        preFilterFieldOptions = new Map();
+        if (jsonA) collectPreFilterOptions(jsonA, '', preFilterFieldOptions);
+        if (jsonB) collectPreFilterOptions(jsonB, '', preFilterFieldOptions);
+
+        // Pre-Filter aktivieren und zurücksetzen
+        preFilterBtn.disabled = false;
+        preFilterConditions = [];
+        activePreFilters = null;
+        updatePreFilterBadge();
     }
 
     /**
@@ -1244,11 +1688,16 @@ document.addEventListener('DOMContentLoaded', function() {
         updateLineNumbers(text, lineNumbers);
     }
 
-    function updateLineNumbers(text, lineNumbersEl) {
+    function updateLineNumbers(text, lineNumbersEl, filterLineSet) {
         const lines = text.split('\n').length;
+        const filterIcon = '<svg class="line-filter-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>';
         let html = '';
         for (let i = 1; i <= lines; i++) {
-            html += '<span>' + i + '</span>';
+            if (filterLineSet && filterLineSet.has(i)) {
+                html += '<span class="line-filtered">' + filterIcon + '</span>';
+            } else {
+                html += '<span>' + i + '</span>';
+            }
         }
         lineNumbersEl.innerHTML = html || '<span>1</span>';
     }
@@ -1798,7 +2247,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const differences = findDifferences(jsonA, jsonB, '');
+        const { filteredA, filteredB } = applyPreFilters(jsonA, jsonB);
+        const differences = findDifferences(filteredA, filteredB, '');
         lastDifferences = differences;
 
         displayDifferences(differences);
@@ -1808,6 +2258,9 @@ document.addEventListener('DOMContentLoaded', function() {
         diffHighlightsB = [];
         updateHighlight(jsonATextarea, highlightA, lineNumbersA);
         updateHighlight(jsonBTextarea, highlightB, lineNumbersB);
+
+        // Pre-Filter-Markierungen in Zeilennummern anzeigen
+        updatePreFilterLineMarkers();
     }
 
     /**
