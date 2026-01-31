@@ -1274,6 +1274,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     addConditionBtn.addEventListener('click', () => {
         preFilterConditions.push({ path: '', field: '', operator: '==', value: '' });
+        activePreFilters = null;
+        updatePreFilterBadge();
+        updatePreFilterLineMarkers();
         renderPreFilterConditions();
     });
 
