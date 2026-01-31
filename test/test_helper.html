@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pre-Filter Test Helper</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-case {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-case h3 {
+            color: #2196F3;
+            margin-top: 0;
+        }
+        .description {
+            background: #e3f2fd;
+            padding: 10px;
+            border-left: 4px solid #2196F3;
+            margin: 10px 0;
+        }
+        .filter-info {
+            background: #fff3e0;
+            padding: 10px;
+            border-left: 4px solid #ff9800;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .expected {
+            background: #e8f5e9;
+            padding: 10px;
+            border-left: 4px solid #4CAF50;
+            margin: 10px 0;
+        }
+        .json-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 15px 0;
+        }
+        .json-box {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .json-box h4 {
+            color: #80cbc4;
+            margin-top: 0;
+            font-size: 14px;
+        }
+        .json-box pre {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.copy {
+            background: #2196F3;
+        }
+        button.copy:hover {
+            background: #1976D2;
+        }
+        .button-group {
+            margin: 15px 0;
+        }
+        .instructions {
+            background: #fff9c4;
+            border: 2px solid #fbc02d;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .instructions h2 {
+            margin-top: 0;
+            color: #f57f17;
+        }
+        .instructions ol {
+            margin-left: 20px;
+        }
+        .instructions li {
+            margin: 10px 0;
+        }
+        .copied-msg {
+            display: inline-block;
+            color: #4CAF50;
+            margin-left: 10px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .copied-msg.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Pre-Filter Test Helper</h1>
+
+    <div class="instructions">
+        <h2>📋 Anleitung</h2>
+        <ol>
+            <li><strong>Wähle einen Test-Case unten aus</strong></li>
+            <li><strong>Klicke auf "JSON A kopieren"</strong> und füge es in das linke Textfeld der Hauptanwendung ein</li>
+            <li><strong>Klicke auf "JSON B kopieren"</strong> und füge es in das rechte Textfeld ein</li>
+            <li><strong>Klicke auf "Properties scannen"</strong> in der Hauptanwendung</li>
+            <li><strong>Öffne das Pre-Filter Panel</strong> und stelle den angegebenen Filter ein</li>
+            <li><strong>Klicke auf "Filter anwenden"</strong></li>
+            <li><strong>Klicke auf "Vergleichen"</strong></li>
+            <li><strong>Überprüfe</strong>, ob das Ergebnis mit der Erwartung übereinstimmt</li>
+        </ol>
+    </div>
+
+    <div id="testCases"></div>
+
+    <script>
+        const testData = {
+  "testCases": [
+    {
+      "name": "Test 1: Identische IT-Mitarbeiter",
+      "description": "Beide JSONs haben gleiche IT-Mitarbeiter. Nach Filter sollte kein Unterschied gefunden werden.",
+      "filter": {
+        "path": "firma.mitarbeiter",
+        "field": "abteilung",
+        "operator": "==",
+        "value": "IT"
+      },
+      "jsonA": {
+        "firma": {
+          "name": "Tech GmbH",
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "gehalt": 55000,
+              "eintrittsdatum": "2020-01-15"
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "gehalt": 48000,
+              "eintrittsdatum": "2019-06-01"
+            },
+            {
+              "id": 3,
+              "name": "Peter Weber",
+              "abteilung": "IT",
+              "gehalt": 62000,
+              "eintrittsdatum": "2018-03-20"
+            }
+          ]
+        }
+      },
+      "jsonB": {
+        "firma": {
+          "name": "Tech GmbH",
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "gehalt": 55000,
+              "eintrittsdatum": "2020-01-15"
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "gehalt": 48000,
+              "eintrittsdatum": "2019-06-01"
+            },
+            {
+              "id": 3,
+              "name": "Peter Weber",
+              "abteilung": "IT",
+              "gehalt": 62000,
+              "eintrittsdatum": "2018-03-20"
+            }
+          ]
+        }
+      },
+      "expectedResult": "Keine Unterschiede (nur IT-Mitarbeiter werden verglichen: Max und Peter sind identisch)"
+    },
+    {
+      "name": "Test 2: IT-Mitarbeiter mit Gehaltsunterschied",
+      "description": "IT-Mitarbeiter haben unterschiedliche Gehälter. Filter sollte nur IT zeigen und Unterschied erkennen.",
+      "filter": {
+        "path": "firma.mitarbeiter",
+        "field": "abteilung",
+        "operator": "==",
+        "value": "IT"
+      },
+      "jsonA": {
+        "firma": {
+          "name": "Tech GmbH",
+          "standort": "München",
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "gehalt": 55000,
+              "projekte": ["ERP", "CRM"]
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "gehalt": 48000,
+              "projekte": ["Recruiting"]
+            },
+            {
+              "id": 3,
+              "name": "Peter Weber",
+              "abteilung": "IT",
+              "gehalt": 62000,
+              "projekte": ["Cloud Migration"]
+            }
+          ]
+        }
+      },
+      "jsonB": {
+        "firma": {
+          "name": "Tech GmbH",
+          "standort": "München",
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "gehalt": 60000,
+              "projekte": ["ERP", "CRM"]
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "gehalt": 52000,
+              "projekte": ["Recruiting"]
+            },
+            {
+              "id": 3,
+              "name": "Peter Weber",
+              "abteilung": "IT",
+              "gehalt": 65000,
+              "projekte": ["Cloud Migration", "DevOps"]
+            }
+          ]
+        }
+      },
+      "expectedResult": "2 Unterschiede: Max Gehalt (55000 vs 60000), Peter Gehalt (62000 vs 65000) und Projekte. Anna wird nicht verglichen."
+    },
+    {
+      "name": "Test 3: Unterschiedliche Anzahl IT-Mitarbeiter",
+      "description": "B hat einen zusätzlichen IT-Mitarbeiter. Filter sollte dies korrekt erkennen.",
+      "filter": {
+        "path": "firma.mitarbeiter",
+        "field": "abteilung",
+        "operator": "==",
+        "value": "IT"
+      },
+      "jsonA": {
+        "firma": {
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "position": "Senior Developer"
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "position": "HR Manager"
+            }
+          ]
+        }
+      },
+      "jsonB": {
+        "firma": {
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "position": "Senior Developer"
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "position": "HR Manager"
+            },
+            {
+              "id": 4,
+              "name": "Julia Becker",
+              "abteilung": "IT",
+              "position": "DevOps Engineer"
+            }
+          ]
+        }
+      },
+      "expectedResult": "1 Unterschied: Julia Becker existiert nur in B (bei IT-Mitarbeitern)"
+    },
+    {
+      "name": "Test 4: Leeres Filterergebnis",
+      "description": "Nach Filter ist ein Array leer (keine IT-Mitarbeiter in B).",
+      "filter": {
+        "path": "firma.mitarbeiter",
+        "field": "abteilung",
+        "operator": "==",
+        "value": "IT"
+      },
+      "jsonA": {
+        "firma": {
+          "mitarbeiter": [
+            {
+              "name": "Max Mustermann",
+              "abteilung": "IT"
+            },
+            {
+              "name": "Anna Schmidt",
+              "abteilung": "HR"
+            }
+          ]
+        }
+      },
+      "jsonB": {
+        "firma": {
+          "mitarbeiter": [
+            {
+              "name": "Anna Schmidt",
+              "abteilung": "HR"
+            },
+            {
+              "name": "Peter Weber",
+              "abteilung": "Sales"
+            }
+          ]
+        }
+      },
+      "expectedResult": "Max existiert nur in A (in B gibt es keine IT-Mitarbeiter)"
+    },
+    {
+      "name": "Test 5: Mehrere Eigenschaften bleiben erhalten",
+      "description": "Nicht-gefilterte Eigenschaften (name, standort) sollten korrekt erhalten bleiben und verglichen werden.",
+      "filter": {
+        "path": "firma.mitarbeiter",
+        "field": "abteilung",
+        "operator": "==",
+        "value": "IT"
+      },
+      "jsonA": {
+        "firma": {
+          "name": "Tech GmbH",
+          "standort": "Berlin",
+          "gruendungsjahr": 2010,
+          "mitarbeiter": [
+            {
+              "name": "Max Mustermann",
+              "abteilung": "IT"
+            },
+            {
+              "name": "Anna Schmidt",
+              "abteilung": "HR"
+            }
+          ],
+          "budget": {
+            "jahr": 2024,
+            "betrag": 500000
+          }
+        }
+      },
+      "jsonB": {
+        "firma": {
+          "name": "Tech GmbH",
+          "standort": "München",
+          "gruendungsjahr": 2010,
+          "mitarbeiter": [
+            {
+              "name": "Max Mustermann",
+              "abteilung": "IT"
+            },
+            {
+              "name": "Anna Schmidt",
+              "abteilung": "HR"
+            }
+          ],
+          "budget": {
+            "jahr": 2024,
+            "betrag": 600000
+          }
+        }
+      },
+      "expectedResult": "2 Unterschiede: standort (Berlin vs München), budget.betrag (500000 vs 600000). Mitarbeiter sind identisch nach IT-Filter."
+    },
+    {
+      "name": "Test 6: Vergleichsoperator 'contains'",
+      "description": "Filter mit contains-Operator für partielle String-Übereinstimmung.",
+      "filter": {
+        "path": "products",
+        "field": "name",
+        "operator": "contains",
+        "value": "laptop"
+      },
+      "jsonA": {
+        "products": [
+          {
+            "id": "P001",
+            "name": "Business Laptop Pro",
+            "price": 1200,
+            "category": "Electronics"
+          },
+          {
+            "id": "P002",
+            "name": "Wireless Mouse",
+            "price": 25,
+            "category": "Electronics"
+          },
+          {
+            "id": "P003",
+            "name": "Gaming Laptop X",
+            "price": 1800,
+            "category": "Electronics"
+          },
+          {
+            "id": "P004",
+            "name": "Office Chair",
+            "price": 300,
+            "category": "Furniture"
+          }
+        ]
+      },
+      "jsonB": {
+        "products": [
+          {
+            "id": "P001",
+            "name": "Business Laptop Pro",
+            "price": 1100,
+            "category": "Electronics"
+          },
+          {
+            "id": "P002",
+            "name": "Wireless Mouse",
+            "price": 25,
+            "category": "Electronics"
+          },
+          {
+            "id": "P003",
+            "name": "Gaming Laptop X",
+            "price": 1800,
+            "category": "Electronics"
+          },
+          {
+            "id": "P004",
+            "name": "Office Chair",
+            "price": 350,
+            "category": "Furniture"
+          }
+        ]
+      },
+      "expectedResult": "Nur Laptops werden verglichen: Business Laptop Pro hat unterschiedlichen Preis (1200 vs 1100)"
+    },
+    {
+      "name": "Test 7: Numerischer Vergleich mit >",
+      "description": "Filter mit > Operator für numerische Werte.",
+      "filter": {
+        "path": "employees",
+        "field": "salary",
+        "operator": ">",
+        "value": "50000"
+      },
+      "jsonA": {
+        "employees": [
+          {
+            "name": "Alice",
+            "salary": 45000,
+            "department": "Marketing"
+          },
+          {
+            "name": "Bob",
+            "salary": 65000,
+            "department": "Engineering"
+          },
+          {
+            "name": "Charlie",
+            "salary": 55000,
+            "department": "Sales"
+          }
+        ]
+      },
+      "jsonB": {
+        "employees": [
+          {
+            "name": "Alice",
+            "salary": 48000,
+            "department": "Marketing"
+          },
+          {
+            "name": "Bob",
+            "salary": 70000,
+            "department": "Engineering"
+          },
+          {
+            "name": "Charlie",
+            "salary": 55000,
+            "department": "Sales"
+          }
+        ]
+      },
+      "expectedResult": "Nur Bob und Charlie (Gehalt > 50000): Bob hat unterschiedliches Gehalt (65000 vs 70000), Charlie ist identisch"
+    }
+  ]
+};
+
+        function copyToClipboard(text, buttonElement) {
+            navigator.clipboard.writeText(text).then(() => {
+                const msg = buttonElement.nextElementSibling;
+                msg.classList.add('show');
+                setTimeout(() => msg.classList.remove('show'), 2000);
+            }).catch(err => {
+                alert('Fehler beim Kopieren: ' + err);
+            });
+        }
+
+        function renderTestCases() {
+            const container = document.getElementById('testCases');
+
+            testData.testCases.forEach((test, index) => {
+                const div = document.createElement('div');
+                div.className = 'test-case';
+
+                const filterHtml = test.filters
+                    ? test.filters.map(f => `
+                        <div style="margin: 5px 0;">
+                            Path: <strong>${f.path}</strong> |
+                            Field: <strong>${f.field}</strong> |
+                            Operator: <strong>${f.operator}</strong> |
+                            Value: <strong>${f.value}</strong>
+                        </div>
+                    `).join('')
+                    : `
+                        Path: <strong>${test.filter.path}</strong> |
+                        Field: <strong>${test.filter.field}</strong> |
+                        Operator: <strong>${test.filter.operator}</strong> |
+                        Value: <strong>${test.filter.value}</strong>
+                    `;
+
+                div.innerHTML = `
+                    <h3>${test.name}</h3>
+                    <div class="description">
+                        <strong>Beschreibung:</strong> ${test.description}
+                    </div>
+                    <div class="filter-info">
+                        <strong>Filter-Einstellung:</strong><br>
+                        ${filterHtml}
+                    </div>
+                    <div class="expected">
+                        <strong>Erwartetes Ergebnis:</strong> ${test.expectedResult}
+                    </div>
+                    <div class="button-group">
+                        <button class="copy" onclick='copyToClipboard(${JSON.stringify(JSON.stringify(test.jsonA, null, 2))}, this)'>
+                            📋 JSON A kopieren
+                        </button>
+                        <span class="copied-msg">✓ Kopiert!</span>
+                        <button class="copy" onclick='copyToClipboard(${JSON.stringify(JSON.stringify(test.jsonB, null, 2))}, this)'>
+                            📋 JSON B kopieren
+                        </button>
+                        <span class="copied-msg">✓ Kopiert!</span>
+                    </div>
+                    <div class="json-container">
+                        <div class="json-box">
+                            <h4>JSON A</h4>
+                            <pre>${JSON.stringify(test.jsonA, null, 2)}</pre>
+                        </div>
+                        <div class="json-box">
+                            <h4>JSON B</h4>
+                            <pre>${JSON.stringify(test.jsonB, null, 2)}</pre>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(div);
+            });
+        }
+
+        window.onload = renderTestCases;
+    </script>
+</body>
+</html>

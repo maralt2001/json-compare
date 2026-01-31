@@ -1,0 +1,498 @@
+{
+  "testCases": [
+    {
+      "name": "Test 1: Identische IT-Mitarbeiter",
+      "description": "Beide JSONs haben gleiche IT-Mitarbeiter. Nach Filter sollte kein Unterschied gefunden werden.",
+      "filter": {
+        "path": "firma.mitarbeiter",
+        "field": "abteilung",
+        "operator": "==",
+        "value": "IT"
+      },
+      "jsonA": {
+        "firma": {
+          "name": "Tech GmbH",
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "gehalt": 55000,
+              "eintrittsdatum": "2020-01-15"
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "gehalt": 48000,
+              "eintrittsdatum": "2019-06-01"
+            },
+            {
+              "id": 3,
+              "name": "Peter Weber",
+              "abteilung": "IT",
+              "gehalt": 62000,
+              "eintrittsdatum": "2018-03-20"
+            }
+          ]
+        }
+      },
+      "jsonB": {
+        "firma": {
+          "name": "Tech GmbH",
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "gehalt": 55000,
+              "eintrittsdatum": "2020-01-15"
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "gehalt": 48000,
+              "eintrittsdatum": "2019-06-01"
+            },
+            {
+              "id": 3,
+              "name": "Peter Weber",
+              "abteilung": "IT",
+              "gehalt": 62000,
+              "eintrittsdatum": "2018-03-20"
+            }
+          ]
+        }
+      },
+      "expectedResult": "Keine Unterschiede (nur IT-Mitarbeiter werden verglichen: Max und Peter sind identisch)"
+    },
+    {
+      "name": "Test 2: IT-Mitarbeiter mit Gehaltsunterschied",
+      "description": "IT-Mitarbeiter haben unterschiedliche Gehälter. Filter sollte nur IT zeigen und Unterschied erkennen.",
+      "filter": {
+        "path": "firma.mitarbeiter",
+        "field": "abteilung",
+        "operator": "==",
+        "value": "IT"
+      },
+      "jsonA": {
+        "firma": {
+          "name": "Tech GmbH",
+          "standort": "München",
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "gehalt": 55000,
+              "projekte": ["ERP", "CRM"]
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "gehalt": 48000,
+              "projekte": ["Recruiting"]
+            },
+            {
+              "id": 3,
+              "name": "Peter Weber",
+              "abteilung": "IT",
+              "gehalt": 62000,
+              "projekte": ["Cloud Migration"]
+            }
+          ]
+        }
+      },
+      "jsonB": {
+        "firma": {
+          "name": "Tech GmbH",
+          "standort": "München",
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "gehalt": 60000,
+              "projekte": ["ERP", "CRM"]
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "gehalt": 52000,
+              "projekte": ["Recruiting"]
+            },
+            {
+              "id": 3,
+              "name": "Peter Weber",
+              "abteilung": "IT",
+              "gehalt": 65000,
+              "projekte": ["Cloud Migration", "DevOps"]
+            }
+          ]
+        }
+      },
+      "expectedResult": "2 Unterschiede: Max Gehalt (55000 vs 60000), Peter Gehalt (62000 vs 65000) und Projekte. Anna wird nicht verglichen."
+    },
+    {
+      "name": "Test 3: Unterschiedliche Anzahl IT-Mitarbeiter",
+      "description": "B hat einen zusätzlichen IT-Mitarbeiter. Filter sollte dies korrekt erkennen.",
+      "filter": {
+        "path": "firma.mitarbeiter",
+        "field": "abteilung",
+        "operator": "==",
+        "value": "IT"
+      },
+      "jsonA": {
+        "firma": {
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "position": "Senior Developer"
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "position": "HR Manager"
+            }
+          ]
+        }
+      },
+      "jsonB": {
+        "firma": {
+          "mitarbeiter": [
+            {
+              "id": 1,
+              "name": "Max Mustermann",
+              "abteilung": "IT",
+              "position": "Senior Developer"
+            },
+            {
+              "id": 2,
+              "name": "Anna Schmidt",
+              "abteilung": "HR",
+              "position": "HR Manager"
+            },
+            {
+              "id": 4,
+              "name": "Julia Becker",
+              "abteilung": "IT",
+              "position": "DevOps Engineer"
+            }
+          ]
+        }
+      },
+      "expectedResult": "1 Unterschied: Julia Becker existiert nur in B (bei IT-Mitarbeitern)"
+    },
+    {
+      "name": "Test 4: Leeres Filterergebnis",
+      "description": "Nach Filter ist ein Array leer (keine IT-Mitarbeiter in B).",
+      "filter": {
+        "path": "firma.mitarbeiter",
+        "field": "abteilung",
+        "operator": "==",
+        "value": "IT"
+      },
+      "jsonA": {
+        "firma": {
+          "mitarbeiter": [
+            {
+              "name": "Max Mustermann",
+              "abteilung": "IT"
+            },
+            {
+              "name": "Anna Schmidt",
+              "abteilung": "HR"
+            }
+          ]
+        }
+      },
+      "jsonB": {
+        "firma": {
+          "mitarbeiter": [
+            {
+              "name": "Anna Schmidt",
+              "abteilung": "HR"
+            },
+            {
+              "name": "Peter Weber",
+              "abteilung": "Sales"
+            }
+          ]
+        }
+      },
+      "expectedResult": "Max existiert nur in A (in B gibt es keine IT-Mitarbeiter)"
+    },
+    {
+      "name": "Test 5: Mehrere Eigenschaften bleiben erhalten",
+      "description": "Nicht-gefilterte Eigenschaften (name, standort) sollten korrekt erhalten bleiben und verglichen werden.",
+      "filter": {
+        "path": "firma.mitarbeiter",
+        "field": "abteilung",
+        "operator": "==",
+        "value": "IT"
+      },
+      "jsonA": {
+        "firma": {
+          "name": "Tech GmbH",
+          "standort": "Berlin",
+          "gruendungsjahr": 2010,
+          "mitarbeiter": [
+            {
+              "name": "Max Mustermann",
+              "abteilung": "IT"
+            },
+            {
+              "name": "Anna Schmidt",
+              "abteilung": "HR"
+            }
+          ],
+          "budget": {
+            "jahr": 2024,
+            "betrag": 500000
+          }
+        }
+      },
+      "jsonB": {
+        "firma": {
+          "name": "Tech GmbH",
+          "standort": "München",
+          "gruendungsjahr": 2010,
+          "mitarbeiter": [
+            {
+              "name": "Max Mustermann",
+              "abteilung": "IT"
+            },
+            {
+              "name": "Anna Schmidt",
+              "abteilung": "HR"
+            }
+          ],
+          "budget": {
+            "jahr": 2024,
+            "betrag": 600000
+          }
+        }
+      },
+      "expectedResult": "2 Unterschiede: standort (Berlin vs München), budget.betrag (500000 vs 600000). Mitarbeiter sind identisch nach IT-Filter."
+    },
+    {
+      "name": "Test 6: Mehrere Filter auf verschiedenen Arrays",
+      "description": "Filter auf zwei verschiedene Arrays gleichzeitig.",
+      "filters": [
+        {
+          "path": "unternehmen.mitarbeiter",
+          "field": "abteilung",
+          "operator": "==",
+          "value": "IT"
+        },
+        {
+          "path": "unternehmen.projekte",
+          "field": "status",
+          "operator": "==",
+          "value": "aktiv"
+        }
+      ],
+      "jsonA": {
+        "unternehmen": {
+          "name": "Innovation AG",
+          "mitarbeiter": [
+            {
+              "name": "Max",
+              "abteilung": "IT",
+              "skills": ["Java", "Python"]
+            },
+            {
+              "name": "Anna",
+              "abteilung": "HR",
+              "skills": ["Recruiting"]
+            },
+            {
+              "name": "Peter",
+              "abteilung": "IT",
+              "skills": ["DevOps"]
+            }
+          ],
+          "projekte": [
+            {
+              "name": "Projekt Alpha",
+              "status": "aktiv",
+              "budget": 100000
+            },
+            {
+              "name": "Projekt Beta",
+              "status": "abgeschlossen",
+              "budget": 50000
+            },
+            {
+              "name": "Projekt Gamma",
+              "status": "aktiv",
+              "budget": 75000
+            }
+          ]
+        }
+      },
+      "jsonB": {
+        "unternehmen": {
+          "name": "Innovation AG",
+          "mitarbeiter": [
+            {
+              "name": "Max",
+              "abteilung": "IT",
+              "skills": ["Java", "Python", "Go"]
+            },
+            {
+              "name": "Anna",
+              "abteilung": "HR",
+              "skills": ["Recruiting", "Training"]
+            },
+            {
+              "name": "Peter",
+              "abteilung": "IT",
+              "skills": ["DevOps"]
+            }
+          ],
+          "projekte": [
+            {
+              "name": "Projekt Alpha",
+              "status": "aktiv",
+              "budget": 120000
+            },
+            {
+              "name": "Projekt Beta",
+              "status": "abgeschlossen",
+              "budget": 50000
+            },
+            {
+              "name": "Projekt Delta",
+              "status": "aktiv",
+              "budget": 90000
+            }
+          ]
+        }
+      },
+      "expectedResult": "Bei Mitarbeitern: Max hat zusätzlich 'Go' in skills. Bei Projekten: Alpha hat unterschiedliches Budget, Gamma vs Delta."
+    },
+    {
+      "name": "Test 7: Vergleichsoperator 'contains'",
+      "description": "Filter mit contains-Operator für partielle String-Übereinstimmung.",
+      "filter": {
+        "path": "products",
+        "field": "name",
+        "operator": "contains",
+        "value": "laptop"
+      },
+      "jsonA": {
+        "products": [
+          {
+            "id": "P001",
+            "name": "Business Laptop Pro",
+            "price": 1200,
+            "category": "Electronics"
+          },
+          {
+            "id": "P002",
+            "name": "Wireless Mouse",
+            "price": 25,
+            "category": "Electronics"
+          },
+          {
+            "id": "P003",
+            "name": "Gaming Laptop X",
+            "price": 1800,
+            "category": "Electronics"
+          },
+          {
+            "id": "P004",
+            "name": "Office Chair",
+            "price": 300,
+            "category": "Furniture"
+          }
+        ]
+      },
+      "jsonB": {
+        "products": [
+          {
+            "id": "P001",
+            "name": "Business Laptop Pro",
+            "price": 1100,
+            "category": "Electronics"
+          },
+          {
+            "id": "P002",
+            "name": "Wireless Mouse",
+            "price": 25,
+            "category": "Electronics"
+          },
+          {
+            "id": "P003",
+            "name": "Gaming Laptop X",
+            "price": 1800,
+            "category": "Electronics"
+          },
+          {
+            "id": "P004",
+            "name": "Office Chair",
+            "price": 350,
+            "category": "Furniture"
+          }
+        ]
+      },
+      "expectedResult": "Nur Laptops werden verglichen: Business Laptop Pro hat unterschiedlichen Preis (1200 vs 1100)"
+    },
+    {
+      "name": "Test 8: Numerischer Vergleich mit >",
+      "description": "Filter mit > Operator für numerische Werte.",
+      "filter": {
+        "path": "employees",
+        "field": "salary",
+        "operator": ">",
+        "value": "50000"
+      },
+      "jsonA": {
+        "employees": [
+          {
+            "name": "Alice",
+            "salary": 45000,
+            "department": "Marketing"
+          },
+          {
+            "name": "Bob",
+            "salary": 65000,
+            "department": "Engineering"
+          },
+          {
+            "name": "Charlie",
+            "salary": 55000,
+            "department": "Sales"
+          }
+        ]
+      },
+      "jsonB": {
+        "employees": [
+          {
+            "name": "Alice",
+            "salary": 48000,
+            "department": "Marketing"
+          },
+          {
+            "name": "Bob",
+            "salary": 70000,
+            "department": "Engineering"
+          },
+          {
+            "name": "Charlie",
+            "salary": 55000,
+            "department": "Sales"
+          }
+        ]
+      },
+      "expectedResult": "Nur Bob und Charlie (Gehalt > 50000): Bob hat unterschiedliches Gehalt (65000 vs 70000), Charlie ist identisch"
+    }
+  ]
+}

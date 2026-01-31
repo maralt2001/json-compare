@@ -100,6 +100,69 @@ Wenn ein einzelner Key nicht eindeutig ist, können mehrere Keys kombiniert werd
 3. **"Keys wählen"** auswählen und die gewünschten Keys aktivieren
 4. Key-Properties werden mit 🔑 markiert und aus dem Vergleich ausgeschlossen (da sie zur Identifikation dienen, nicht zum Vergleich)
 
+### Pre-Filter (Daten vor dem Vergleich filtern)
+
+Mit dem Pre-Filter können Array-Daten **vor dem Vergleich** gefiltert werden. Nur Elemente, die den Filterbedingungen entsprechen, werden in den Vergleich einbezogen.
+
+#### Wann ist der Pre-Filter nützlich?
+
+- Große Arrays mit vielen Objekten, von denen nur eine Teilmenge relevant ist
+- Vergleich nur bestimmter Datensätze (z.B. nur aktive Mitarbeiter, nur IT-Abteilung)
+- Ausblenden irrelevanter Daten, um das Ergebnis übersichtlicher zu gestalten
+
+#### Verfügbare Operatoren
+
+| Operator | Beschreibung | Beispiel |
+|----------|-------------|----------|
+| `==` | Gleich | `abteilung == "IT"` |
+| `!=` | Ungleich | `status != "inaktiv"` |
+| `>` | Größer als | `gehalt > 50000` |
+| `<` | Kleiner als | `alter < 30` |
+| `>=` | Größer oder gleich | `bewertung >= 4` |
+| `<=` | Kleiner oder gleich | `preis <= 100` |
+| `contains` | Enthält (Teilstring, case-insensitive) | `name contains "müller"` |
+
+#### Bedingungslogik
+
+Mehrere Bedingungen werden mit **UND-Verknüpfung** kombiniert. Ein Array-Element muss **alle** Bedingungen gleichzeitig erfüllen, um im Vergleich berücksichtigt zu werden.
+
+#### Verwendung
+
+1. JSON-Daten eingeben
+2. **"Properties scannen"** klicken (Pre-Filter-Button wird danach aktiv)
+3. **Pre-Filter-Button** klicken (violetter Filter-Button)
+4. **Pfad** auswählen — zeigt alle filterbaren Arrays (z.B. `firma.mitarbeiter`)
+5. **Feld** auswählen — die Properties der Array-Objekte (z.B. `abteilung`)
+6. **Operator** und **Wert** einstellen
+7. Optional: **"+ Bedingung"** für weitere Filter-Kriterien
+8. **"Anwenden"** klicken
+9. **"Vergleichen"** klicken — der Vergleich berücksichtigt nur gefilterte Elemente
+
+#### Beispiel
+
+**JSON A und B:**
+```json
+{
+  "firma": {
+    "mitarbeiter": [
+      { "name": "Max", "abteilung": "IT", "gehalt": 55000 },
+      { "name": "Anna", "abteilung": "HR", "gehalt": 48000 },
+      { "name": "Peter", "abteilung": "IT", "gehalt": 62000 }
+    ]
+  }
+}
+```
+
+**Pre-Filter:** `firma.mitarbeiter` → `abteilung` == `IT`
+
+**Ergebnis:** Nur Max und Peter werden verglichen. Anna (HR) wird aus dem Vergleich ausgeschlossen.
+
+#### Visuelle Hinweise
+
+- **Badge** am Pre-Filter-Button zeigt die Anzahl aktiver Filter
+- **Orange Markierungen** an den Zeilennummern zeigen, welche Array-Elemente dem Filter entsprechen
+- **Warnung** erscheint, wenn kein Objekt alle Bedingungen gleichzeitig erfüllt
+
 ### Ergebnis-Anzeige
 - **Auf-/zuklappbare** Unterschiede mit Datei-Icon und A/B-Kennzeichnung
 - **Inline-Diff-Highlighting** - markiert Unterschiede direkt in den Editoren (Toggle per Klick)
@@ -128,6 +191,14 @@ JSON eingeben → Properties scannen → Properties auswählen → Vergleichen
 ```
 
 Dies ist besonders nützlich bei großen JSONs, wenn nur bestimmte Felder relevant sind.
+
+### Workflow mit Pre-Filter
+
+```
+JSON eingeben → Properties scannen → Pre-Filter öffnen → Bedingungen setzen → Anwenden → Vergleichen
+```
+
+Dies ist besonders nützlich, wenn nur eine bestimmte Teilmenge von Array-Daten verglichen werden soll (z.B. nur IT-Mitarbeiter, nur aktive Projekte).
 
 ## Technologie
 

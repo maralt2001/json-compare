@@ -168,6 +168,69 @@
             <li>Key-Properties werden markiert und aus dem Vergleich ausgeschlossen (da sie zur Identifikation dienen, nicht zum Vergleich)</li>
           </ol>
 
+          <h3>Pre-Filter (Daten vor dem Vergleich filtern)</h3>
+          <p>Mit dem Pre-Filter k&ouml;nnen Array-Daten <strong>vor dem Vergleich</strong> gefiltert werden. Nur Elemente, die den Filterbedingungen entsprechen, werden in den Vergleich einbezogen.</p>
+
+          <h4>Wann ist der Pre-Filter n&uuml;tzlich?</h4>
+          <ul>
+            <li>Gro&szlig;e Arrays mit vielen Objekten, von denen nur eine Teilmenge relevant ist</li>
+            <li>Vergleich nur bestimmter Datens&auml;tze (z.B. nur aktive Mitarbeiter, nur IT-Abteilung)</li>
+            <li>Ausblenden irrelevanter Daten, um das Ergebnis &uuml;bersichtlicher zu gestalten</li>
+          </ul>
+
+          <h4>Verf&uuml;gbare Operatoren</h4>
+          <table>
+            <thead>
+              <tr><th>Operator</th><th>Beschreibung</th><th>Beispiel</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>==</code></td><td>Gleich</td><td><code>abteilung == "IT"</code></td></tr>
+              <tr><td><code>!=</code></td><td>Ungleich</td><td><code>status != "inaktiv"</code></td></tr>
+              <tr><td><code>&gt;</code></td><td>Gr&ouml;&szlig;er als</td><td><code>gehalt &gt; 50000</code></td></tr>
+              <tr><td><code>&lt;</code></td><td>Kleiner als</td><td><code>alter &lt; 30</code></td></tr>
+              <tr><td><code>&gt;=</code></td><td>Gr&ouml;&szlig;er oder gleich</td><td><code>bewertung &gt;= 4</code></td></tr>
+              <tr><td><code>&lt;=</code></td><td>Kleiner oder gleich</td><td><code>preis &lt;= 100</code></td></tr>
+              <tr><td><code>contains</code></td><td>Enth&auml;lt (Teilstring, case-insensitive)</td><td><code>name contains "m&uuml;ller"</code></td></tr>
+            </tbody>
+          </table>
+
+          <h4>Bedingungslogik</h4>
+          <p>Mehrere Bedingungen werden mit <strong>UND-Verkn&uuml;pfung</strong> kombiniert. Ein Array-Element muss <strong>alle</strong> Bedingungen gleichzeitig erf&uuml;llen.</p>
+
+          <h4>Verwendung</h4>
+          <ol>
+            <li>JSON-Daten eingeben</li>
+            <li><strong>&quot;Properties scannen&quot;</strong> klicken (Pre-Filter-Button wird danach aktiv)</li>
+            <li><strong>Pre-Filter-Button</strong> klicken (violetter Filter-Button)</li>
+            <li><strong>Pfad</strong> ausw&auml;hlen &mdash; zeigt alle filterbaren Arrays (z.B. <code>firma.mitarbeiter</code>)</li>
+            <li><strong>Feld</strong> ausw&auml;hlen &mdash; die Properties der Array-Objekte (z.B. <code>abteilung</code>)</li>
+            <li><strong>Operator</strong> und <strong>Wert</strong> einstellen</li>
+            <li>Optional: <strong>&quot;+ Bedingung&quot;</strong> f&uuml;r weitere Filter-Kriterien</li>
+            <li><strong>&quot;Anwenden&quot;</strong> klicken</li>
+            <li><strong>&quot;Vergleichen&quot;</strong> klicken &mdash; nur gefilterte Elemente werden verglichen</li>
+          </ol>
+
+          <h4>Beispiel</h4>
+          <p><strong>JSON mit Mitarbeitern:</strong></p>
+          <pre><code>{
+  "firma": {
+    "mitarbeiter": [
+      { "name": "Max", "abteilung": "IT", "gehalt": 55000 },
+      { "name": "Anna", "abteilung": "HR", "gehalt": 48000 },
+      { "name": "Peter", "abteilung": "IT", "gehalt": 62000 }
+    ]
+  }
+}</code></pre>
+          <p><strong>Pre-Filter:</strong> <code>firma.mitarbeiter</code> &rarr; <code>abteilung</code> == <code>IT</code></p>
+          <p><strong>Ergebnis:</strong> Nur Max und Peter werden verglichen. Anna (HR) wird aus dem Vergleich ausgeschlossen.</p>
+
+          <h4>Visuelle Hinweise</h4>
+          <ul>
+            <li><strong>Badge</strong> am Pre-Filter-Button zeigt die Anzahl aktiver Filter</li>
+            <li><strong>Orange Markierungen</strong> an den Zeilennummern zeigen, welche Array-Elemente dem Filter entsprechen</li>
+            <li><strong>Warnung</strong> erscheint, wenn kein Objekt alle Bedingungen gleichzeitig erf&uuml;llt</li>
+          </ul>
+
           <h3>Ergebnis-Anzeige</h3>
           <ul>
             <li><strong>Auf-/zuklappbare</strong> Unterschiede mit Datei-Icon und A/B-Kennzeichnung</li>
@@ -197,6 +260,10 @@
           <h3>Workflow mit Property-Vorauswahl</h3>
           <pre><code>JSON eingeben &rarr; Properties scannen &rarr; Properties ausw&auml;hlen &rarr; Vergleichen</code></pre>
           <p>Dies ist besonders n&uuml;tzlich bei gro&szlig;en JSONs, wenn nur bestimmte Felder relevant sind.</p>
+
+          <h3>Workflow mit Pre-Filter</h3>
+          <pre><code>JSON eingeben &rarr; Properties scannen &rarr; Pre-Filter &ouml;ffnen &rarr; Bedingungen setzen &rarr; Anwenden &rarr; Vergleichen</code></pre>
+          <p>Dies ist besonders n&uuml;tzlich, wenn nur eine bestimmte Teilmenge von Array-Daten verglichen werden soll (z.B. nur IT-Mitarbeiter, nur aktive Projekte).</p>
 
           <h2>Technologie</h2>
           <ul>

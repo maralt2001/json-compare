@@ -1042,12 +1042,26 @@ document.addEventListener('DOMContentLoaded', function() {
         const key = parts[depth];
 
         if (Array.isArray(obj)) {
+            // When navigating through an array, map over each element
+            // and continue filtering at the same depth level
             return obj.map(item => filterObjectAtPath(item, parts, depth, conditions));
         }
 
         if (typeof obj === 'object' && obj !== null && key in obj) {
-            const clone = { ...obj };
-            clone[key] = filterObjectAtPath(obj[key], parts, depth + 1, conditions);
+            // Create a proper deep clone to ensure complete isolation
+            // This prevents any shared references between filtered and unfiltered data
+            const clone = {};
+            for (const k in obj) {
+                if (obj.hasOwnProperty(k)) {
+                    if (k === key) {
+                        // Filter the target property
+                        clone[k] = filterObjectAtPath(obj[k], parts, depth + 1, conditions);
+                    } else {
+                        // Deep clone other properties to prevent shared references
+                        clone[k] = JSON.parse(JSON.stringify(obj[k]));
+                    }
+                }
+            }
             return clone;
         }
 
@@ -1076,10 +1090,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return { filteredA: jsonA, filteredB: jsonB };
         }
 
+        // Create deep clones to ensure complete isolation from original data
+        // This prevents any accidental mutations of the original JSON objects
         let filteredA = JSON.parse(JSON.stringify(jsonA));
         let filteredB = JSON.parse(JSON.stringify(jsonB));
 
-        // Group conditions by path
+        // Group conditions by path (multiple conditions on same path use AND logic)
         const conditionsByPath = new Map();
         activePreFilters.forEach(cond => {
             if (!conditionsByPath.has(cond.path)) {
@@ -1088,9 +1104,22 @@ document.addEventListener('DOMContentLoaded', function() {
             conditionsByPath.get(cond.path).push(cond);
         });
 
+        // Apply each group of conditions sequentially
+        // Each filterAtPath call creates a new object structure with filtered arrays
         conditionsByPath.forEach((conditions, path) => {
-            filteredA = filterAtPath(filteredA, path, conditions);
-            filteredB = filterAtPath(filteredB, path, conditions);
+            try {
+                const newFilteredA = filterAtPath(filteredA, path, conditions);
+                const newFilteredB = filterAtPath(filteredB, path, conditions);
+
+                // Only update if filtering succeeded
+                if (newFilteredA !== undefined && newFilteredB !== undefined) {
+                    filteredA = newFilteredA;
+                    filteredB = newFilteredB;
+                }
+            } catch (err) {
+                console.error(`Error applying filter at path "${path}":`, err);
+                // Continue with unfiltered data for this path
+            }
         });
 
         return { filteredA, filteredB };
