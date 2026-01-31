@@ -1401,6 +1401,20 @@ button.array-key-toggle:hover,
     font-style: italic;
 }
 
+.compare-active-hints {
+    padding: 0.6em 1em;
+    margin-bottom: 0.75em;
+    border-radius: var(--radius-sm);
+    background: rgba(139, 92, 246, 0.1);
+    border-left: 3px solid #8b5cf6;
+    font-size: 0.8rem;
+    line-height: 1.6;
+}
+
+.compare-hint-line {
+    color: #a78bfa;
+}
+
 .no-diff {
     color: var(--added-color);
     font-weight: 600;

@@ -2745,6 +2745,31 @@ document.addEventListener('DOMContentLoaded', function() {
         return differences;
     }
 
+    function buildActiveHintText() {
+        const hints = [];
+
+        if (activePreFilters && activePreFilters.length > 0) {
+            const conditionsByPath = new Map();
+            activePreFilters.forEach(f => {
+                if (!conditionsByPath.has(f.path)) conditionsByPath.set(f.path, []);
+                conditionsByPath.get(f.path).push(f);
+            });
+            const parts = [];
+            conditionsByPath.forEach((conditions, path) => {
+                const label = path || '(Root-Array)';
+                const condStr = conditions.map(c => `${c.field} ${c.operator} ${c.value}`).join(' UND ');
+                parts.push(`${label}: ${condStr}`);
+            });
+            hints.push(`Pre-Filter aktiv: ${parts.join('; ')}`);
+        }
+
+        if (selectedProperties !== null) {
+            hints.push(`Property-Auswahl aktiv: ${selectedProperties.size} von ${allScannedProperties.length} Properties ausgew\u00e4hlt`);
+        }
+
+        return hints;
+    }
+
     function displayDifferences(differences) {
         diffResult.innerHTML = '';
         allCollapsed = true;
@@ -2756,8 +2781,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         updateFilterCounts(differences);
 
+        // Hinweis anzeigen wenn Pre-Filter und/oder Property-Auswahl aktiv
+        const hints = buildActiveHintText();
+        if (hints.length > 0) {
+            const hintDiv = document.createElement('div');
+            hintDiv.className = 'compare-active-hints';
+            hintDiv.innerHTML = hints.map(h => `<div class="compare-hint-line">${escapeHtml(h)}</div>`).join('');
+            diffResult.appendChild(hintDiv);
+        }
+
         if (differences.length === 0) {
-            diffResult.innerHTML = '<div class="no-diff">Keine Unterschiede gefunden - Die JSON-Daten sind identisch.</div>';
+            const noDiv = document.createElement('div');
+            noDiv.className = 'no-diff';
+            noDiv.textContent = 'Keine Unterschiede gefunden - Die JSON-Daten sind identisch.';
+            diffResult.appendChild(noDiv);
             return;
         }
 
