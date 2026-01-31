@@ -243,14 +243,16 @@ html, body {
 
 /* Arrow Styles for Dropdowns */
 .prop-selector-arrow,
-.normalize-arrow {
+.normalize-arrow,
+.pre-filter-arrow {
     font-size: 0.7em;
     transition: transform 0.2s ease;
     margin-left: 0.3em;
 }
 
 .property-selector:has(.prop-selector-dropdown.open) .prop-selector-arrow,
-.normalize-selector:has(.normalize-dropdown.open) .normalize-arrow {
+.normalize-selector:has(.normalize-dropdown.open) .normalize-arrow,
+.pre-filter-arrow.open {
     transform: rotate(180deg);
 }
 

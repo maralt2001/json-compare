@@ -1243,8 +1243,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Pre-Filter Event Listeners
+    const preFilterArrow = document.getElementById('preFilterArrow');
+
+    function updatePreFilterArrow() {
+        preFilterArrow.classList.toggle('open', preFilterPanel.classList.contains('open'));
+    }
+
     preFilterBtn.addEventListener('click', () => {
         preFilterPanel.classList.toggle('open');
+        updatePreFilterArrow();
         if (preFilterPanel.classList.contains('open') && preFilterConditions.length === 0) {
             preFilterConditions.push({ path: '', field: '', operator: '==', value: '' });
             renderPreFilterConditions();
@@ -1272,6 +1279,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (preFilterWarning.style.display === 'none') {
             preFilterPanel.classList.remove('open');
         }
+        updatePreFilterArrow();
     });
 
     resetFilterBtn.addEventListener('click', () => {

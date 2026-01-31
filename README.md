@@ -1,6 +1,6 @@
 # Compare My JSON
 
-Eine clientseitige Webanwendung zum Vergleichen von JSON-Daten. Keine Server-Komponente erforderlich - läuft vollständig im Browser.
+Eine clientseitige Webanwendung zum Vergleichen von JSON-Daten. Alle Daten werden ausschließlich lokal im Browser verarbeitet - es werden keine Daten an einen Server oder Webservice gesendet.
 
 ![Compare My JSON Screenshot](/assets/CompareMyJson.png)
 
@@ -199,6 +199,12 @@ JSON eingeben → Properties scannen → Pre-Filter öffnen → Bedingungen setz
 ```
 
 Dies ist besonders nützlich, wenn nur eine bestimmte Teilmenge von Array-Daten verglichen werden soll (z.B. nur IT-Mitarbeiter, nur aktive Projekte).
+
+## Datenschutz
+
+- **100% lokal** - Alle JSON-Daten werden ausschließlich im Browser verarbeitet
+- **Kein Server** - Es werden keine Daten an einen Webservice oder externe Server gesendet
+- **Offline-fähig** - Die App funktioniert als PWA auch ohne Internetverbindung
 
 ## Technologie
 
