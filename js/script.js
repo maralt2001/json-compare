@@ -1149,76 +1149,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 if (!Array.isArray(arr)) return;
 
-                arr.forEach(item => {
-                    if (typeof item !== 'object' || item === null) return;
-                    if (!matchesAllConditions(item, conditions)) return;
+                // Suche alle Objekt-Positionen im Text anhand der ersten Bedingung als Anker
+                const firstCond = conditions[0];
+                const searchPattern = `"${firstCond.field}"`;
+                let searchFrom = 0;
 
-                    // Suche das matchende Objekt im Text via erste Bedingung als Anker
-                    const firstCond = conditions[0];
-                    const searchPattern = `"${firstCond.field}"`;
-                    let searchFrom = 0;
+                while (searchFrom < jsonText.length) {
+                    const fieldPos = jsonText.indexOf(searchPattern, searchFrom);
+                    if (fieldPos === -1) break;
 
-                    while (searchFrom < jsonText.length) {
-                        const fieldPos = jsonText.indexOf(searchPattern, searchFrom);
-                        if (fieldPos === -1) break;
+                    const afterField = jsonText.slice(fieldPos + searchPattern.length).match(/^\s*:\s*/);
+                    if (!afterField) { searchFrom = fieldPos + 1; continue; }
 
-                        const afterField = jsonText.slice(fieldPos + searchPattern.length).match(/^\s*:\s*/);
-                        if (!afterField) { searchFrom = fieldPos + 1; continue; }
-
-                        const valueStart = fieldPos + searchPattern.length + afterField[0].length;
-                        const valueStr = jsonText.slice(valueStart, valueStart + 200);
-
-                        let actualValue = '';
-                        if (valueStr.startsWith('"')) {
-                            const endQuote = valueStr.indexOf('"', 1);
-                            if (endQuote !== -1) actualValue = valueStr.slice(1, endQuote);
-                        } else {
-                            const m = valueStr.match(/^([^\s,}\]]+)/);
-                            if (m) actualValue = m[1];
+                    // Finde umgebendes Objekt { ... }
+                    let braceCount = 0;
+                    let objStart = fieldPos;
+                    for (let i = fieldPos - 1; i >= 0; i--) {
+                        if (jsonText[i] === '}') braceCount++;
+                        if (jsonText[i] === '{') {
+                            if (braceCount === 0) { objStart = i; break; }
+                            braceCount--;
                         }
-
-                        let matches = false;
-                        switch (firstCond.operator) {
-                            case '==': matches = actualValue === firstCond.value; break;
-                            case '!=': matches = actualValue !== firstCond.value; break;
-                            case '>': matches = parseFloat(actualValue) > parseFloat(firstCond.value); break;
-                            case '<': matches = parseFloat(actualValue) < parseFloat(firstCond.value); break;
-                            case '>=': matches = parseFloat(actualValue) >= parseFloat(firstCond.value); break;
-                            case '<=': matches = parseFloat(actualValue) <= parseFloat(firstCond.value); break;
-                            case 'contains': matches = actualValue.toLowerCase().includes(firstCond.value.toLowerCase()); break;
-                            default: matches = actualValue === firstCond.value;
+                    }
+                    braceCount = 0;
+                    let objEnd = fieldPos;
+                    for (let i = objStart; i < jsonText.length; i++) {
+                        if (jsonText[i] === '{') braceCount++;
+                        if (jsonText[i] === '}') {
+                            braceCount--;
+                            if (braceCount === 0) { objEnd = i + 1; break; }
                         }
+                    }
 
-                        if (matches) {
-                            // Finde umgebendes Objekt { ... }
-                            let braceCount = 0;
-                            let objStart = fieldPos;
-                            for (let i = fieldPos - 1; i >= 0; i--) {
-                                if (jsonText[i] === '}') braceCount++;
-                                if (jsonText[i] === '{') {
-                                    if (braceCount === 0) { objStart = i; break; }
-                                    braceCount--;
-                                }
-                            }
-                            braceCount = 0;
-                            let objEnd = fieldPos;
-                            for (let i = objStart; i < jsonText.length; i++) {
-                                if (jsonText[i] === '{') braceCount++;
-                                if (jsonText[i] === '}') {
-                                    braceCount--;
-                                    if (braceCount === 0) { objEnd = i + 1; break; }
-                                }
-                            }
-
+                    // Parse das gefundene Objekt und prüfe ALLE Bedingungen
+                    try {
+                        const objText = jsonText.slice(objStart, objEnd);
+                        const obj = JSON.parse(objText);
+                        if (matchesAllConditions(obj, conditions)) {
                             const startLine = jsonText.slice(0, objStart).split('\n').length;
                             const endLine = jsonText.slice(0, objEnd).split('\n').length;
                             for (let l = startLine; l <= endLine; l++) {
                                 lineSet.add(l);
                             }
                         }
-                        searchFrom = fieldPos + 1;
+                    } catch (parseErr) {
+                        // Objekt konnte nicht geparst werden, überspringen
                     }
-                });
+
+                    searchFrom = fieldPos + 1;
+                }
             });
         } catch (e) {
             // ignore
